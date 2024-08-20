@@ -1,0 +1,118 @@
+---
+title: "Technical Deliverable"
+author: "Justin Powley"
+format: html
+editor: visual
+---
+
+```{r, init, message = F, warning = F, error = F}
+library(tidyquant)
+library(tidyverse)
+library(RTL)
+library(tsibble)
+library(feasts)
+library(slider)
+```
+
+```{r, data_import}
+tickers <- c("RB=F", "HO=F", "CL=F")
+start_date <- '2021-01-01'
+core_data <- tq_get(tickers, get = "stock.prices", from = start_date) %>% 
+  dplyr::mutate(symbol = case_when(symbol == tickers[1] ~ "RBOB",
+                                   symbol == tickers[2] ~ "Heating Oil",
+                                   symbol == tickers[3] ~ "WTI"))
+EIA_Data <- eia2tidy(ticker = "PET.MCRFPTX2.M", key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", name = "TexasProd")
+```
+
+```{r, cleaning}
+core_data <- core_data %>% 
+  dplyr::group_by(symbol) %>% 
+  dplyr::arrange(date) %>% 
+  dplyr::mutate(pct_close = (close-lag(close))/lag(close)) %>% 
+  tidyr::drop_na()
+```
+
+```{r, eda, eval = FALSE}
+# General Visualization
+core_data %>% 
+  ggplot() +
+  geom_line(aes(x=date, y = pct_close)) +
+  labs(title = "Pct Returns", x = "Date", y = "Pct Change (Closing Prices)") +
+  facet_grid(symbol ~ .)
+
+wide_core_data <- core_data %>% 
+  pivot_wider(id_cols = date, names_from = symbol, values_from = close) %>% 
+  dplyr::mutate(ratio_RBOB_over_WTI = RBOB/WTI,
+                ratio_HO_over_WTI = `Heating Oil`/WTI)
+
+# Correlation of 3 prices. Unsurprisingly Crude correlates higher to both end products, since seasonal factors drive crude and heating oil prices apart. 
+
+wide_core_data %>% 
+  dplyr::select(-date) %>% 
+  cor()
+
+# The ratio correlations (very low between the 2 ratios, <5%) indicates that remaining volatility, or volatility not driven by crude pricing, is nearly independent between heating oil and gasoline. We expect different drivers for each of these spreads.
+
+# Using a longer time frame on RBOB, we see a slight seasonal increase in price in summer, followed by a decrease in winter. 2 Major outliers here. First, 2020 sees a reversal in RBOB demand due to Covid, and 2022 sees a sharp increase due to easing of pandemic restrictions leading to a sharp spike of demand.
+
+core_data %>% 
+  dplyr::filter(symbol == "RBOB") %>% 
+  tsibble::as_tsibble(key = symbol, index = date) %>%
+  tsibble::group_by_key() %>%
+  tsibble::index_by(freq = yearmonth(.$date)) %>%
+  summarise(value = mean(close), .groups = "keep") %>% 
+  tidyr::drop_na() %>% 
+  feasts::gg_season()
+
+# General Risk Profile, RBOB
+core_data %>% 
+  group_by(symbol) %>% 
+  dplyr::mutate(sd20 = slide_dbl(pct_close, sd, .before = 20, .complete = TRUE),
+                sd50 = slide_dbl(pct_close, sd, .before = 50, .complete = TRUE),
+                sd200 = slide_dbl(pct_close, sd, .before = 200, .complete = TRUE),
+                sd_static = sd(pct_close)) %>% 
+  tidyr::drop_na() %>% 
+  dplyr::filter(symbol == "RBOB") %>%
+  ggplot() +
+  geom_line(aes(x=date, y = sd20, color = "20-Day SD")) +
+  geom_line(aes(x=date, y = sd50, color = "50-Day SD")) +
+  geom_line(aes(x=date, y = sd200, color = "200-Day SD")) +
+  geom_line(aes(x = date, y = sd_static, color = "Static SD, Full Horizon")) +
+  labs(title = "Risk Profile of RBOB",
+       subtitle = "Standard Deviation of Daily Returns",
+       x = "Date",
+       y = "%Standard Deviation",
+       color = "Legend") +
+  scale_color_manual(values = c("20-Day SD" = "red", "50-Day SD" = "blue", "200-Day SD" = "green", "Static SD, Full Horizon" = "black"))
+
+# General Risk Profile, RBOB Pct Spread. We see over inflated static SD, likely due to a single outlier. Here me might opt for shorter time ranges to accommodate this.
+
+wide_core_data %>% 
+  pivot_longer(cols = c("RBOB", "Heating Oil", "WTI","ratio_RBOB_over_WTI", "ratio_HO_over_WTI")) %>% 
+  arrange(name,date) %>% 
+  group_by(name) %>% 
+  filter(name == "ratio_RBOB_over_WTI") %>% 
+  dplyr::mutate(sd20 = slide_dbl(value, sd, .before = 20, .complete = TRUE),
+                sd50 = slide_dbl(value, sd, .before = 50, .complete = TRUE),
+                sd200 = slide_dbl(value, sd, .before = 200, .complete = TRUE),
+                sd_static = sd(value)) %>% 
+  tidyr::drop_na() %>% 
+  ggplot() +
+  geom_line(aes(x=date, y = sd20, color = "20-Day SD")) +
+  geom_line(aes(x=date, y = sd50, color = "50-Day SD")) +
+  geom_line(aes(x=date, y = sd200, color = "200-Day SD")) +
+  geom_line(aes(x = date, y = sd_static, color = "Static SD, Full Horizon")) +
+  labs(title = "Risk Profile of RBOB %Spread over WTI",
+       subtitle = "Standard Deviation of Percent Spread",
+       x = "Date",
+       y = "%Standard Deviation",
+       color = "Legend") +
+  scale_color_manual(values = c("20-Day SD" = "red", "50-Day SD" = "blue", "200-Day SD" = "green", "Static SD, Full Horizon" = "black"))
+```
+
+```{r, more EDA}
+core_data %>% 
+  dplyr::filter(symbol == "RBOB") %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = close))
+```

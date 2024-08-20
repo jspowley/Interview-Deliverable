@@ -1,0 +1,72 @@
+---
+title: "Report"
+author: "Justin Powley"
+format: html
+editor: visual
+---
+
+```{r, init, message = F, warning = F, error = F}
+library(tidyquant)
+library(tidyverse)
+library(RTL)
+library(tsibble)
+library(feasts)
+library(slider)
+```
+
+```{r, data_import}
+# Yahoo Finance
+tickers <- c("RB=F", "HO=F", "CL=F")
+start_date <- '2021-01-01'
+price_data_in <- tq_get(tickers, get = "stock.prices", from = start_date) %>% 
+  dplyr::mutate(symbol = case_when(symbol == tickers[1] ~ "RBOB",
+                                   symbol == tickers[2] ~ "Heating Oil",
+                                   symbol == tickers[3] ~ "WTI"))
+#EIA Data
+eia_series <- c(US_Field_Prod = "MCRFPUS1")
+
+EIA_data <- NA
+for(i in 1:length(eia_series)){
+  data_in <- eia2tidy(ticker = paste0("PET.", eia_series[i],".M"), 
+                     key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", 
+                     name = "value") %>% 
+    dplyr::mutate(series = names(eia_series)[i])
+  
+  if(i == 1){
+    EIA_data <- data_in
+  } else {
+    EIA_data <- add_row(EIA_data, data_in)
+  }
+}
+```
+
+```{r, preprocessing}
+add_ret_metrics <- function(df_in){
+  # Accepts a df with columns value, series, date
+  # Adds returns and cumulative return metrics for value.
+  df_in %>% 
+    group_by(series) %>% 
+    arrange(series, date) %>% 
+    dplyr::mutate(ret_pct = (value-lag(value))/lag(value),
+                  ret_log = log(value/lag(value))) %>% 
+    tidyr::drop_na() %>% 
+    dplyr::mutate(cret_pct = cumprod(ret_pct+1),
+                  cret_log = cumsum(ret_log),
+                  year_month = yearmonth(date))
+    return()
+}
+
+price_data <- price_data_in %>% 
+  dplyr::select(date, series = symbol, value = close, volume) %>% 
+  add_ret_metrics()
+
+
+```
+
+## Recommendation
+
+## Rationale
+
+## Fundamental Market Drivers
+
+## Risk
