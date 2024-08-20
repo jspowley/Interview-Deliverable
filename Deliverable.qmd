@@ -1,0 +1,24 @@
+---
+title: "Technical Deliverable"
+author: "Justin Powley"
+format: html
+editor: visual
+---
+
+```{r, init}
+library(tidyquant)
+library(tidyverse)
+library(RTL)
+```
+
+```{r, data_import}
+tickers <- c("RB=F", )
+rbob <- tq_get("RB=F", get = "stock.prices", from = '2021-01-01')
+EIA_Data <- eia2tidy(ticker = "PET.MCRFPTX2.M", key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", name = "TexasProd")
+```
+
+```{r, eda}
+ggplot(rbob) +
+  geom_line(aes(x=date, y = close)) +
+  labs(title = "RBOB", x = "Date", y = "Closing Price")
+```
