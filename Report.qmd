@@ -47,6 +47,10 @@ EIA_Data <- eia2tidy_all(eia_tickers, EIA_API)
 EIA_Data %>% group_by(series) %>% dplyr::mutate(temp = 1, temp = cumsum(temp)) %>% 
   dplyr::filter(temp == 1) %>% 
   dplyr::select(-temp)
+
+fred_tickers <- c("IPMINE")
+fred_data <- tq_get(fred_tickers, get = "economic.data", from = start_date) %>% 
+  dplyr::mutate(symbol = case_when(symbol == fred_tickers[1] ~ "Mining Production Index"))
 ```
 
 ```{r, preprocessing}
@@ -186,7 +190,11 @@ price_data %>%
 # https://www.fhwa.dot.gov/policyinformation/travel_monitoring/tvt.cfm
 # Potential to create a fully automated workflow. For now, manually link the reports for the time period of interest.
 
-links <- c(FHWA2024 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/24juntvt/24juntvt.xlsx")
+# Must be newest to oldest
+links <- c(FHWA2024 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/24juntvt/24juntvt.xlsx",
+           FHWA2023 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/23dectvt/23dectvt.xlsx",
+           FHWA2022 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/22dectvt/22dectvt.xlsx",
+           FHWA2021 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/21dectvt/21dectvt.xlsx")
 
 month_tags <- c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
 
@@ -203,16 +211,33 @@ clean_FHWA <- function(df_in){
     return()
 }
 
-
-path <- paste0(names(links)[1],".xlsx")
-curl_download(links[1], path)
+for(i in 1:length(links)){
+  path <- paste0(names(links)[i],".xlsx")
+  curl_download(links[i], path)
 # I am hesitant to use specific row indexes here, due to issues which can arise if the template changes. I'll add a check to make sure the row title is consistent to catch potential changes to the template.
-df1 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,4,12))
-df2 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,13,20))
+  df1 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,4,12))
+  df2 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,13,20))
 
-df1 %>% clean_FHWA()
-df2 %>% clean_FHWA()
+  if(i == 1){
+    FHWA_Data <- df2 %>% clean_FHWA()
+  }
+  FHWA_Data <- bind_rows(df1 %>% clean_FHWA(), FHWA_Data)
+}
 
+FHWA_Data <- FHWA_Data %>% 
+  dplyr::mutate(date = yearmonth(paste(month, year)),
+                series = "B_Miles_Driven") %>% 
+  dplyr::select(series, date, value) %>% 
+  dplyr::mutate(date = as.Date(date),
+                value = as.numeric(value))
+  
+# This uncovers for us some of the seasonal demand for fuel.
+FHWA_Data %>% 
+  arrange(date) %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = value)) +
+  labs(title = "Seasonal patterns in road travel, using FHWA Data",
+       x = "Date", y = "Billions of Miles Traveled")
 ```
 
 ```{r}
