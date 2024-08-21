@@ -24,7 +24,8 @@ price_data_in <- tq_get(tickers, get = "stock.prices", from = start_date) %>%
                                    symbol == tickers[3] ~ "WTI",
                                    symbol == tickers[4] ~ "Natural_Gas"))
 #EIA Data
-eia_series <- c(US_Field_Prod = "MCRFPUS1")
+eia_series <- c(US_Field_Prod = "MCRFPUS1",
+                US_Ending_Stock = "WTTSTUS1")
 
 EIA_data <- NA
 for(i in 1:length(eia_series)){
@@ -92,15 +93,20 @@ spread_data %>%
        color = "Legend") +
   scale_color_manual(values = c("20-Day Corr" = "red", "50-Day Corr" = "blue", "200-Day Corr" = "green", "Static Corr, Full Horizon" = "black"))
 
-spread_data %>%
-  dplyr::select(crack_spread, Natural_Gas) %>% 
-  dplyr::mutate()
-  cor()
+spread_data %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = crack_spread), color = "red") +
+  geom_line(aes(x = date, y = Natural_Gas), color = "black")
 ```
 
 ## Recommendation
 
+
+
 ## Rationale
+
+Crack spreads are typically more stable. They are reflective of the profit a refinery takes from processing crude into refined products such as gasoline and diesel. The stability of a spread largely comes from its 
+
 
 ## Fundamental Market Drivers
 
