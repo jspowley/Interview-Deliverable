@@ -36,7 +36,7 @@ eia_tickers <- tribble(~ticker, ~name, "PET.WTTSTUS1.W", "US_Crude_Inventory",
                        "PET.MGFSTUS1.M", "US_Gasoline_Stocks_Blended",
                        "PET.M_EPOBGRR_SAE_NUS_MBBL.M", "US_RBOB_Stocks_Unblended",
                        "PET.MO5ST_NUS_1.M", "US_Conventional_Stocks_Unblended",
-                       "PET.WPULEUS3.W", "Operable_Utilization"
+                       "PET.WPULEUS3.W", "Pct_Operable_Utilization"
                        )
 
 EIA_Data <- eia2tidy_all(eia_tickers, EIA_API)
@@ -65,6 +65,9 @@ price_data <- price_data_in %>%
   dplyr::select(date, series = symbol, value = close, volume) %>% 
   add_ret_metrics()
 
+fundamentals_data <- EIA_Data %>% 
+  add_ret_metrics()
+
 # 3:2:1 Crack Spread used here. Setting below can be used to adjust the crack spread to other ratios, such as 5:3:2
 spread_ratio <- c(3,2,1)
 
@@ -74,9 +77,13 @@ spread_data <- price_data %>%
                                 spread_ratio[3]*42*Heating_Oil) - 
                                 WTI*spread_ratio[1])/
                                 spread_ratio[1])
+
+EIA_Data %>% pivot_wider(names_from = series, id_cols = date, values_from = value) %>% 
+  dplyr::arrange(desc(date))
 ```
 
 ```{r, eda}
+# Rolling Correlation of RBOB and WTI
 spread_data %>% 
   dplyr::mutate(static_cor = cor(WTI,RBOB),
                 cor20 = slide2_dbl(RBOB, WTI, cor, .before = 20, .complete = TRUE),
@@ -90,16 +97,38 @@ spread_data %>%
   geom_line(aes(x=date, y = cor200, color = "200-Day Corr")) +
   geom_line(aes(x = date, y = static_cor, color = "Static Corr, Full Horizon")) +
   labs(title = "Rolling Correlations, WTI and RBOB",
-       subtitle = "How different are spread and outright strategies",
+       subtitle = "How coupled are spreads to the underlying price?",
        x = "Date",
        y = "Correlation",
        color = "Legend") +
   scale_color_manual(values = c("20-Day Corr" = "red", "50-Day Corr" = "blue", "200-Day Corr" = "green", "Static Corr, Full Horizon" = "black"))
 
+# Natural Gas and Spread Price
 spread_data %>% 
   ggplot() +
   geom_line(aes(x = date, y = crack_spread), color = "red") +
   geom_line(aes(x = date, y = Natural_Gas), color = "black")
+
+# Crude Stocks
+fundamentals_data %>% 
+  dplyr::filter(series == "US_Crude_Inventory" & date > start_date) %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = value)) +
+  labs(title = "US Crude Stocks", y = "Thousands of Barrels", x = "Date")
+
+# Crude Stocks, PCT Change
+fundamentals_data %>% 
+  dplyr::filter(series == "US_Crude_Inventory" & date > start_date) %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = ret_pct)) +
+  labs(title = "US Crude Stocks, Changes in Supply", y = "% Change in Supply", x = "Date")
+
+# Plant Utilization versus Crude Inventories
+fundamentals_data %>% 
+  pivot_wider(names_from = series, id_cols = date, values_from = value) %>% 
+  dplyr::select(Pct_Operable_Utilization, US_Crude_Inventory) %>% 
+  tidyr::drop_na() %>% 
+  cor()
 ```
 
 ## Recommendation
