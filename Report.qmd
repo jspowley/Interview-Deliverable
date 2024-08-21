@@ -15,7 +15,8 @@ library(slider)
 library(httr)
 library(curl)
 
-# Note the lack of an API sometimes necessitates loading from excel worksheets.
+# Note that sometimes the lack of an API sometimes necessitates loading from excel worksheets.
+# This is not the equivalent of modeling in excel, it's instead just another mechanism for us to load data automatically into the model.
 library(xlsx)
 
 EIA_API <- "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX"
@@ -52,7 +53,8 @@ fred_tickers <- c("IPMINE", "GDP", "TRUCKD11")
 fred_data <- tq_get(fred_tickers, get = "economic.data", from = start_date) %>% 
   dplyr::mutate(symbol = case_when(symbol == fred_tickers[1] ~ "Mining_Production_Index",
                                    symbol == fred_tickers[2] ~ "US_GDP",
-                                   symbol == fred_tickers[3] ~ "Truck_Tonnage_IndexP"))
+                                   symbol == fred_tickers[3] ~ "Truck_Tonnage_Index")) %>% 
+  dplyr::rename(series = symbol, value = price)
 
 # I'd recommend incorporating Baltic Dry Index (BDI) for shipping by sea. Unfortunately these are metrics which require subscriptions, and as a result aren't included in this report.
 ```
@@ -86,13 +88,13 @@ spread_ratio <- c(3,2,1)
 
 spread_data <- price_data %>% 
   pivot_wider(names_from = series, id_cols = date, values_from = value) %>% 
-  dplyr::mutate(crack_spread = ((spread_ratio[2]*42*RBOB + 
+  dplyr::mutate(Crack_Spread = ((spread_ratio[2]*42*RBOB + 
                                 spread_ratio[3]*42*Heating_Oil) - 
                                 WTI*spread_ratio[1])/
                                 spread_ratio[1])
 
-price_data <- spread_data %>% dplyr::select(date, value = crack_spread) %>% 
-  dplyr::mutate(series = "crack_spread", volume = 0) %>% 
+price_data <- spread_data %>% dplyr::select(date, value = Crack_Spread) %>% 
+  dplyr::mutate(series = "Crack_Spread", volume = 0) %>% 
   bind_rows(price_data) %>% 
   add_ret_metrics()
 
@@ -125,7 +127,7 @@ spread_data %>%
 # Natural Gas and Spread Price
 spread_data %>% 
   ggplot() +
-  geom_line(aes(x = date, y = crack_spread), color = "red") +
+  geom_line(aes(x = date, y = Crack_Spread), color = "red") +
   geom_line(aes(x = date, y = Natural_Gas), color = "black")
 
 # Crude Stocks
@@ -158,8 +160,8 @@ price_data %>%
 
 ```{r, Risk}
 price_data %>% 
-  dplyr::filter(series == "crack_spread" | series == "RBOB" | series == "WTI" | series == "Heating_Oil") %>% 
-  dplyr::mutate(series = case_when(series == "crack_spread" ~ "Crack Spread",
+  dplyr::filter(series == "Crack_Spread" | series == "RBOB" | series == "WTI" | series == "Heating_Oil") %>% 
+  dplyr::mutate(series = case_when(series == "Crack_Spread" ~ "Crack Spread",
                                    series == "RBOB" ~ "RBOB",
                                    series == "WTI" ~ "WTI",
                                    TRUE ~ "Heating Oil")) %>% 
@@ -169,8 +171,8 @@ price_data %>%
   facet_grid(series~.)
 
 price_data %>% 
-  dplyr::filter(series == "crack_spread" | series == "RBOB") %>% 
-  dplyr::mutate(series = case_when(series == "crack_spread" ~ "Crack Spread",
+  dplyr::filter(series == "Crack_Spread" | series == "RBOB") %>% 
+  dplyr::mutate(series = case_when(series == "Crack_Spread" ~ "Crack Spread",
                                    series == "RBOB" ~ "RBOB",
                                    series == "WTI" ~ "WTI",
                                    TRUE ~ "Heating Oil")) %>% 
@@ -246,17 +248,44 @@ FHWA_Data %>%
        x = "Date", y = "Billions of Miles Traveled")
 ```
 
+```{r, more eda}
+# Re-visualizing data every time I wanted to add another data source was getting inefficient;
+# Created a generalized line graph function
+s_graph <- function(data, series_name, start_date_in = start_date){
+  data %>% 
+    dplyr::filter(series == series_name) %>% 
+    dplyr::filter(date >= start_date_in) %>% 
+    ggplot() +
+    geom_line(aes(y = value, x = date)) + 
+    labs(title = series_name) %>% 
+    return()
+}
+
+# Fred
+for(s in fred_data$series %>% unique()){
+ s_graph(fred_data, s) %>% print()
+}
+
+# Price Data
+for(s in price_data$series %>% unique()){
+ s_graph(price_data, s) %>% print()
+}
+
+# Fundamentals Data, EIA
+for(s in fundamentals_data$series %>% unique()){
+ s_graph(fundamentals_data, s) %>% print()
+}
+
+# Notes: Some indicators here track with GDP (Note the strong uptrend. To incorporate these, we may consider normalizing each index to start at 1, and then net the difference between GDP and the other indicator, making a spread)
+```
+
 ```{r}
 
 ```
 
 ## Recommendation
 
-
-
 ## Rationale
-
-
 
 ## Fundamental Market Drivers
 
@@ -268,11 +297,7 @@ Crack spread is more volatile than risk for a couple of reasons. Firstly, the cr
 #Graph Goes Here
 ```
 
-
-
 ## Appendix
-
-
 
 ### Development Notes
 
