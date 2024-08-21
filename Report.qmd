@@ -48,9 +48,13 @@ EIA_Data %>% group_by(series) %>% dplyr::mutate(temp = 1, temp = cumsum(temp)) %
   dplyr::filter(temp == 1) %>% 
   dplyr::select(-temp)
 
-fred_tickers <- c("IPMINE")
+fred_tickers <- c("IPMINE", "GDP", "TRUCKD11")
 fred_data <- tq_get(fred_tickers, get = "economic.data", from = start_date) %>% 
-  dplyr::mutate(symbol = case_when(symbol == fred_tickers[1] ~ "Mining Production Index"))
+  dplyr::mutate(symbol = case_when(symbol == fred_tickers[1] ~ "Mining_Production_Index",
+                                   symbol == fred_tickers[2] ~ "US_GDP",
+                                   symbol == fred_tickers[3] ~ "Truck_Tonnage_IndexP"))
+
+# I'd recommend incorporating Baltic Dry Index (BDI) for shipping by sea. Unfortunately these are metrics which require subscriptions, and as a result aren't included in this report.
 ```
 
 ```{r, preprocessing}
@@ -214,7 +218,9 @@ clean_FHWA <- function(df_in){
 for(i in 1:length(links)){
   path <- paste0(names(links)[i],".xlsx")
   curl_download(links[i], path)
-# I am hesitant to use specific row indexes here, due to issues which can arise if the template changes. I'll add a check to make sure the row title is consistent to catch potential changes to the template.
+
+  # I am hesitant to use specific row indexes here, due to issues which can arise if the template changes. In   a full implementation I'd add checks for keywords in certain rows.cells to ensure that necessary updates and   mismatches aren't missed.
+  
   df1 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,4,12))
   df2 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,13,20))
 
@@ -276,4 +282,12 @@ Crack spread is more volatile than risk for a couple of reasons. Firstly, the cr
 # Can today's crack spread be used to predict tomorrows crude price? Perhaps is the crack spread is favorable enough we can expect a bullish run on crude as companies seek to increase production to capitalize on higher margins.
 
 # Note the move to v2 API call on EIA
+
+# 3 potential options for modelling future price: 
+  # Regression model, and STI forecasts of dependent variables.
+  # Regression model making predictions using lagged variables.
+  # Regression model that predicts today price, and the difference between the prediction and the actual       # price is used.
+  #The third option can be improved with Jarque-Bera distribution on the error terms, to determine how "off" a particular day is.
+
+# Option 3 is preferable, since it can give us a band of expected prices today, and help us get a better sense of a strong/weak reversal potential.
 ```
