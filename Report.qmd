@@ -16,12 +16,13 @@ library(slider)
 
 ```{r, data_import}
 # Yahoo Finance
-tickers <- c("RB=F", "HO=F", "CL=F")
+tickers <- c("RB=F", "HO=F", "CL=F", "NG=F")
 start_date <- '2021-01-01'
 price_data_in <- tq_get(tickers, get = "stock.prices", from = start_date) %>% 
   dplyr::mutate(symbol = case_when(symbol == tickers[1] ~ "RBOB",
-                                   symbol == tickers[2] ~ "Heating Oil",
-                                   symbol == tickers[3] ~ "WTI"))
+                                   symbol == tickers[2] ~ "Heating_Oil",
+                                   symbol == tickers[3] ~ "WTI",
+                                   symbol == tickers[4] ~ "Natural_Gas"))
 #EIA Data
 eia_series <- c(US_Field_Prod = "MCRFPUS1")
 
@@ -52,7 +53,7 @@ add_ret_metrics <- function(df_in){
     tidyr::drop_na() %>% 
     dplyr::mutate(cret_pct = cumprod(ret_pct+1),
                   cret_log = cumsum(ret_log),
-                  year_month = yearmonth(date))
+                  year_month = yearmonth(date)) %>% 
     return()
 }
 
@@ -60,7 +61,41 @@ price_data <- price_data_in %>%
   dplyr::select(date, series = symbol, value = close, volume) %>% 
   add_ret_metrics()
 
+# 3:2:1 Crack Spread used here. Setting below can be used to adjust the crack spread to other ratios, such as 5:3:2
+spread_ratio <- c(3,2,1)
 
+spread_data <- price_data %>% 
+  pivot_wider(names_from = series, id_cols = date, values_from = value) %>% 
+  dplyr::mutate(crack_spread = ((spread_ratio[2]*42*RBOB + 
+                                spread_ratio[3]*42*Heating_Oil) - 
+                                WTI*spread_ratio[1])/
+                                spread_ratio[1])
+```
+
+```{r, eda}
+spread_data %>% 
+  dplyr::mutate(static_cor = cor(WTI,RBOB),
+                cor20 = slide2_dbl(RBOB, WTI, cor, .before = 20, .complete = TRUE),
+                cor50 = slide2_dbl(RBOB, WTI, cor, .before = 50, .complete = TRUE),
+                cor200 = slide2_dbl(RBOB, WTI, cor, .before = 200, .complete = TRUE)
+                ) %>% 
+  tidyr::drop_na() %>% 
+  ggplot() +
+  geom_line(aes(x=date, y = cor20, color = "20-Day Corr")) +
+  geom_line(aes(x=date, y = cor50, color = "50-Day Corr")) +
+  geom_line(aes(x=date, y = cor200, color = "200-Day Corr")) +
+  geom_line(aes(x = date, y = static_cor, color = "Static Corr, Full Horizon")) +
+  labs(title = "Rolling Correlations, WTI and RBOB",
+       subtitle = "How different are spread and outright strategies",
+       x = "Date",
+       y = "Correlation",
+       color = "Legend") +
+  scale_color_manual(values = c("20-Day Corr" = "red", "50-Day Corr" = "blue", "200-Day Corr" = "green", "Static Corr, Full Horizon" = "black"))
+
+spread_data %>%
+  dplyr::select(crack_spread, Natural_Gas) %>% 
+  dplyr::mutate()
+  cor()
 ```
 
 ## Recommendation
