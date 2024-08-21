@@ -21,7 +21,7 @@ core_data <- tq_get(tickers, get = "stock.prices", from = start_date) %>%
   dplyr::mutate(symbol = case_when(symbol == tickers[1] ~ "RBOB",
                                    symbol == tickers[2] ~ "Heating Oil",
                                    symbol == tickers[3] ~ "WTI"))
-EIA_Data <- eia2tidy(ticker = "PET.MCRFPTX2.M", key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", name = "TexasProd")
+EIA_Data <- eia2tidy(ticker = "PET.MCRFPAL1.M", key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", name = "Alabama_Prod")
 ```
 
 ```{r, cleaning}

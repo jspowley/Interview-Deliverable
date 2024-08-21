@@ -12,6 +12,9 @@ library(RTL)
 library(tsibble)
 library(feasts)
 library(slider)
+library(httr)
+
+EIA_API <- "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX"
 ```
 
 ```{r, data_import}
@@ -23,23 +26,23 @@ price_data_in <- tq_get(tickers, get = "stock.prices", from = start_date) %>%
                                    symbol == tickers[2] ~ "Heating_Oil",
                                    symbol == tickers[3] ~ "WTI",
                                    symbol == tickers[4] ~ "Natural_Gas"))
-#EIA Data
-eia_series <- c(US_Field_Prod = "MCRFPUS1",
-                US_Ending_Stock = "WTTSTUS1")
 
-EIA_data <- NA
-for(i in 1:length(eia_series)){
-  data_in <- eia2tidy(ticker = paste0("PET.", eia_series[i],".M"), 
-                     key = "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX", 
-                     name = "value") %>% 
-    dplyr::mutate(series = names(eia_series)[i])
-  
-  if(i == 1){
-    EIA_data <- data_in
-  } else {
-    EIA_data <- add_row(EIA_data, data_in)
-  }
-}
+eia_tickers <- tribble(~ticker, ~name, "PET.WTTSTUS1.W", "US_Crude_Inventory",
+                       "PET.MCRFPUS1.M", "US_Crude_Prod",
+                       "NG.NW2_EPG0_SWO_R48_BCF.W", "Lower48NGStorage",
+                       "PET.WCRNTUS2.W", "US_Crude_NI",
+                       "PET.WRPNTUS2.W", "US_Petrol_Products_NI",
+                       "PET.WGFRPUS2.W", "US_Gasoline_Production",
+                       "PET.MGFSTUS1.M", "US_Gasoline_Stocks_Blended",
+                       "PET.M_EPOBGRR_SAE_NUS_MBBL.M", "US_RBOB_Stocks_Unblended",
+                       "PET.MO5ST_NUS_1.M", "US_Conventional_Stocks_Unblended",
+                       "PET.WPULEUS3.W", "Operable_Utilization"
+                       )
+
+EIA_Data <- eia2tidy_all(eia_tickers, EIA_API)
+EIA_Data %>% group_by(series) %>% dplyr::mutate(temp = 1, temp = cumsum(temp)) %>% 
+  dplyr::filter(temp == 1) %>% 
+  dplyr::select(-temp)
 ```
 
 ```{r, preprocessing}
@@ -111,3 +114,14 @@ Crack spreads are typically more stable. They are reflective of the profit a ref
 ## Fundamental Market Drivers
 
 ## Risk
+
+## Appendix
+
+### Development Notes
+
+```{r, Developer Notes}
+# A place for the developer to note potential features and future directions to take the model.
+
+# Can today's crack spread be used to predict tomorrows crude price? Perhaps is the crack spread is favorable enough we can expect a bullish run on crude as companies seek to increase production to capitalize on higher margins.
+
+```
