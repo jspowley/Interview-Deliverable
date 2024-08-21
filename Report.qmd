@@ -13,6 +13,10 @@ library(tsibble)
 library(feasts)
 library(slider)
 library(httr)
+library(curl)
+
+# Note the lack of an API sometimes necessitates loading from excel worksheets.
+library(xlsx)
 
 EIA_API <- "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX"
 ```
@@ -62,11 +66,12 @@ add_ret_metrics <- function(df_in){
 }
 
 price_data <- price_data_in %>% 
-  dplyr::select(date, series = symbol, value = close, volume) %>% 
-  add_ret_metrics()
+  dplyr::select(date, series = symbol, value = close, volume)
+# rm(price_data_in)
 
 fundamentals_data <- EIA_Data %>% 
   add_ret_metrics()
+# rm(EIA_Data)
 
 # 3:2:1 Crack Spread used here. Setting below can be used to adjust the crack spread to other ratios, such as 5:3:2
 spread_ratio <- c(3,2,1)
@@ -77,6 +82,12 @@ spread_data <- price_data %>%
                                 spread_ratio[3]*42*Heating_Oil) - 
                                 WTI*spread_ratio[1])/
                                 spread_ratio[1])
+
+price_data <- spread_data %>% dplyr::select(date, value = crack_spread) %>% 
+  dplyr::mutate(series = "crack_spread", volume = 0) %>% 
+  bind_rows(price_data) %>% 
+  add_ret_metrics()
+
 
 EIA_Data %>% pivot_wider(names_from = series, id_cols = date, values_from = value) %>% 
   dplyr::arrange(desc(date))
@@ -129,6 +140,83 @@ fundamentals_data %>%
   dplyr::select(Pct_Operable_Utilization, US_Crude_Inventory) %>% 
   tidyr::drop_na() %>% 
   cor()
+
+# This graph reveals short term supply/demand shocks as well as a general inflationary pressure which leads to a gradual increase over the course of the time period.
+price_data %>% 
+  dplyr::filter(series == "RBOB") %>% 
+  ggplot() +
+  geom_line(aes(x = date, y = value))
+```
+
+```{r, Risk}
+price_data %>% 
+  dplyr::filter(series == "crack_spread" | series == "RBOB" | series == "WTI" | series == "Heating_Oil") %>% 
+  dplyr::mutate(series = case_when(series == "crack_spread" ~ "Crack Spread",
+                                   series == "RBOB" ~ "RBOB",
+                                   series == "WTI" ~ "WTI",
+                                   TRUE ~ "Heating Oil")) %>% 
+  ggplot() +
+  geom_histogram(aes(x = ret_pct, y = ..count../sum(..count..)), bins = 100) +
+  labs(x = "Percent Return, Daily", y = "Density", title = "Crack Spread Volatility Compared to its Market Dependencies") +
+  facet_grid(series~.)
+
+price_data %>% 
+  dplyr::filter(series == "crack_spread" | series == "RBOB") %>% 
+  dplyr::mutate(series = case_when(series == "crack_spread" ~ "Crack Spread",
+                                   series == "RBOB" ~ "RBOB",
+                                   series == "WTI" ~ "WTI",
+                                   TRUE ~ "Heating Oil")) %>% 
+  ggplot() +
+  geom_histogram(aes(x = ret_pct, y = ..count../sum(..count..)), bins = 100) +
+  labs(x = "Percent Return, Daily", y = "Density", title = "Crack Spread Versus Gasoline Volatility") +
+  facet_grid(series~.)
+
+# price_data %>% pivot_wider(id_cols = date, names_from = series, values_from = value) %>% 
+
+price_data %>% 
+  group_by(series) %>% 
+  dplyr::summarise(
+    `Average Return` = mean(ret_pct),
+    `Standard Deviation` = sd(ret_pct),
+    .groups = "keep")
+```
+
+```{r, FHWA}
+# Pulling distance traveled estimates from FHWA
+# https://www.fhwa.dot.gov/policyinformation/travel_monitoring/tvt.cfm
+# Potential to create a fully automated workflow. For now, manually link the reports for the time period of interest.
+
+links <- c(FHWA2024 = "https://www.fhwa.dot.gov/policyinformation/travel_monitoring/24juntvt/24juntvt.xlsx")
+
+month_tags <- c("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+
+clean_FHWA <- function(df_in){
+  
+  df_in_year <- paste(df_in %>% head(1), collapse = " ") %>% str_extract(pattern = "[0-9][0-9][0-9][0-9]")
+  
+  df_in %>% 
+    tail(1) %>% 
+    pivot_longer(names_to = "month", cols = month_tags) %>% 
+    dplyr::select(month, value) %>% 
+    dplyr::mutate(year = df_in_year) %>% 
+    drop_na() %>% 
+    return()
+}
+
+
+path <- paste0(names(links)[1],".xlsx")
+curl_download(links[1], path)
+# I am hesitant to use specific row indexes here, due to issues which can arise if the template changes. I'll add a check to make sure the row title is consistent to catch potential changes to the template.
+df1 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,4,12))
+df2 <- xlsx::read.xlsx(path, sheetName = "Page 3", rowIndex = c(3,13,20))
+
+df1 %>% clean_FHWA()
+df2 %>% clean_FHWA()
+
+```
+
+```{r}
+
 ```
 
 ## Recommendation
@@ -137,14 +225,23 @@ fundamentals_data %>%
 
 ## Rationale
 
-Crack spreads are typically more stable. They are reflective of the profit a refinery takes from processing crude into refined products such as gasoline and diesel. The stability of a spread largely comes from its 
 
 
 ## Fundamental Market Drivers
 
 ## Risk
 
+Crack spread is more volatile than risk for a couple of reasons. Firstly, the crack spread is affected by 3 separate prices -- crude, gasoline and distillates. Secondly, the spread between the prices is nominally smaller than the prices themselves. Combined, this means an uncorrelated move in any of the 3 prices will often result in a proportionally larger move in the spread. This makes the spread more risky. This can be seen by comparing gasoline prices the crack spread prices below:
+
+```{r}
+#Graph Goes Here
+```
+
+
+
 ## Appendix
+
+
 
 ### Development Notes
 
@@ -153,4 +250,5 @@ Crack spreads are typically more stable. They are reflective of the profit a ref
 
 # Can today's crack spread be used to predict tomorrows crude price? Perhaps is the crack spread is favorable enough we can expect a bullish run on crude as companies seek to increase production to capitalize on higher margins.
 
+# Note the move to v2 API call on EIA
 ```
