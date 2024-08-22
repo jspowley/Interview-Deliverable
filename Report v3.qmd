@@ -542,6 +542,15 @@ data_in <- data_in %>%
   dplyr::filter(date >= start_date) %>% 
   arrange(date)
 
+if(show_plot){
+  line_plot <- data_in %>% 
+    ggplot() +
+    geom_line(aes(x = date, y = value)) +
+    labs(title = series_name)
+  
+  print(line_plot)
+}
+
 ts_in <- data_in %>% 
   dplyr::select(value) %>% 
   ts()
@@ -608,18 +617,132 @@ output_list$fit <- fit
 
 return(output_list)
 }
+
+review_f <- function(list_in){
+  print(list_in$order)
+  print(list_in$q_stat)
+}
+
+examine_frequency <- function(df_in, series_name){
+  df_in %>% 
+    ungroup() %>% 
+    arrange(date) %>% 
+    filter(series == series_name) %>% 
+    return()
+}
+```
+
+```{r, autoSTL function}
+
+autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_plot = F, date_filter = start_date){
+  
+  output_list <- list()
+
+  # Data Prep
+  
+  ts_in <- data_in %>% 
+    dplyr::filter(date >= date_filter) %>% 
+    dplyr::filter(series == series_name) %>% 
+    ungroup() %>% 
+    arrange(date) %>% 
+    dplyr::select(value) %>% 
+    .$value %>% 
+    as.vector() %>% 
+    ts(frequency = freq)
+  
+  data_in <- data_in %>% 
+    ungroup() %>% 
+    dplyr::filter(series == series_name) %>% 
+    dplyr::filter(date >= start_date) %>% 
+    arrange(date)
+  
+  if(show_plot){
+  line_plot <- data_in %>% 
+    ggplot() +
+    geom_line(aes(x = date, y = value)) +
+    labs(title = series_name)
+  
+  print(line_plot)
+  }
+  
+  # Fitting
+  
+  fit <- stl(ts_in, s.window = window_size)
+  
+  if(show_plot){
+    plot(fit)
+  }
+  
+  # Horizon and Interpolation Prep
+  
+  last_date <- data_in %>%
+  filter(date == max(date)) %>% 
+  .$date
+
+  time_diff <- as.numeric(Sys.Date() - last_date)
+
+  last_point <- data_in %>%
+    filter(date == max(date)) %>% 
+    .$value
+
+  forecast_length <- ceiling(time_diff/period_days)
+  
+  #Debug Section, Contains Fixed Assignments. Comment out if not in use
+
+  # forecast_length <- 2
+
+  # Debug End
+  
+  # Forecast and Interpolation
+
+  if(forecast_length > 0){
+  forecast_stl <- forecast(fit, h = forecast_length) %>% as.data.frame()
+  
+    if(forecast_length == 1){
+    #print(1)
+      ratio <- time_diff/period_days
+      forecast_out <- ratio*forecast_stl$`Point Forecast` + (1-ratio)*last_point
+    } else {
+    #print(2)
+      ratio <- (time_diff/period_days) - (floor(time_diff/period_days))
+      forecast_out <- ratio*forecast_stl$`Point Forecast`[forecast_length] + 
+        (1-ratio)*forecast_stl$`Point Forecast`[forecast_length-1]
+    }
+  
+  } else {
+  #print(0)
+    forecast_out <- last_point
+  }
+  
+  output_list$pf <- forecast_out
+  output_list$last <- last_point
+  output_list$fit <- fit
+  
+  res_df <- fit$time.series[, "remainder"] %>% as.data.frame()
+  output_list$arima_ready <- cbind(data_in, res_df) %>% dplyr::mutate(value = x)
+  
+  return(output_list)
+}
+
 ```
 
 
 ```{r}
-# Un-comment lines to see full outputs, helpful for analysts trying to choose an appropriate model.
 
-crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7)
-# Integrated model (p,d,q) = (2,1,3)
+crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, F)
 latest_data_df$US_Crude_Inventory <- crude_inv_model$last
 forecast_latest_df$US_Crude_Inventory <- crude_inv_model$pf
 
+tonnage_model <- auto_forecast(fred_data, "Truck_Tonnage_Index", 365/12, F)
+# tonnage_model %>% review_f()
+latest_data_df$Truck_Tonnage_Index <- tonnage_model$last
+forecast_latest_df$Truck_Tonnage_Index <- tonnage_model$pf
 
+# crude_prod_model <- auto_forecast(fundamentals_data, "US_Crude_Prod", 365/12, T)
+# In prior review, crude production tracks with GDP growth. With this in mind, I filtered out to just post 2020 data to remove the level shift in 2020.
+  
+crude_prod_stl <- fundamentals_data %>% autoSTL(series_name = "US_Crude_Prod", 365/12, 12, 13, T)
+crude_prod_arma <- crude_prod_stl$arima_ready %>% auto_forecast()
 ```
 
 ```{r, Forecasting Truck Tonnage}
