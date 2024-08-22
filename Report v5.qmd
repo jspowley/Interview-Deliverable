@@ -848,23 +848,23 @@ The 3-2-1 crack spread looks `r recommendation2` based on market fundamentals. O
 
 ## Trading Strategy
 
-A few options exist to enter into a long position in the crack spread. Firstly, one can enter using a long crack spread futures contract. By locking in the price of the crack spread today, we will profit if the crack spread increases.
+A long position in the crack spread can be entered in one of two ways: 
 
-The second option is to enter long into 2 gasoline and 1 heating oil contract, and then enter short into 3 crude oil contracts. Note that crude oil contracts volumes are 1000 barrels on the CME and RBOB and Heating Oil are 42,000 gallons (1000 Barrels). Using CME futures, this position emulates a crack spread position on 3000 barrels processed. On other exchanges the ratio of contracts may have to be adjusted accordingly.
+1. Enter using a long crack spread futures contract. By locking in the price of the crack spread today, we will profit if the crack spread increases.
 
-Note: In the event market data supports that opposite position at the time of reading, a short position can be obtained by reversing the described strategy exactly.
+2. Enter long into 2 gasoline and 1 heating oil futures contract, and then enter short into 3 crude oil contracts. Note that crude oil contract volumes are 1000 barrels on the CME and RBOB and Heating Oil volumes are 42,000 gallons (1000 Barrels).
+
+Note: In the event market conditions change, and a short position is recommended, enter the opposite of the above position.
 
 ## Rationale
 
-```{r}
+```{r, echo = FALSE}
 final_reg_graph
 ```
 
 The prediction is driven by a regression model (shown above) consisting of **9 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
 
-Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data points.
-
-With no reversals between dependendent and independent variables, our model forecasts an upside potential of `r abs(current_price - forecast_prediction)` per barrel.
+Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data.
 
 ## Fundamental Market Drivers
 
@@ -897,25 +897,60 @@ With the previous factors in mind, assuming no reversals between dependent and i
 
 How then do we assess the underlying risk, knowing that our model's effectiveness can be disrupted? Focusing on the riskiness of the underlying asset is crucial, since it gives us an unbiased standpoint separate from our model.
 
-Below is a 10% Value at Risk on 1 month positions in the crack spread. This does not count for liquidity risk day to day, but gives us a sense of how much we can lose entering long today and exiting in a month from now (no model considerations).
-
-```{r}
+```{r, echo = FALSE}
 #VAR Metrics
+var_monthly <- price_data %>% 
+  dplyr::filter(series == "Crack_Spread") %>% 
+  dplyr::mutate(monthly_cret = slide_dbl(ret_pct+1, prod, .before = 20, .complete = TRUE),
+                monthly_cret = monthly_cret - 1) %>% 
+  drop_na()
+
+var_monthly_hist <- var_monthly %>% 
+  dplyr::filter(abs(monthly_cret) < 2) %>% 
+  ggplot() +
+  geom_histogram(aes(x = monthly_cret, y = ..count../sum(..count..)), bins = 100) +
+  labs(title = "Distribution of Monthly Returns, Crack Spread",
+       x = "Monthly Return",
+       y = "Density")
+
+threshold <- 0.05
+
+if(recommendation == "long"){
+  VAR <- var_monthly %>% 
+    dplyr::filter(monthly_cret <= quantile(monthly_cret, threshold)) %>% 
+    dplyr::filter(monthly_cret == max(monthly_cret)) %>% 
+    .$monthly_cret %>% 
+    round(digits = 3)
+} else {
+  VAR <- var_monthly %>% 
+    dplyr::filter(monthly_cret >= quantile(monthly_cret, (1-threshold))) %>% 
+    dplyr::filter(monthly_cret == min(monthly_cret)) %>% 
+    .$monthly_cret %>% 
+    round(digits = 3)
+  VAR <- VAR*-1
+}
 ```
 
-To get a sense of the chances of getting closed out early due to daily volatility, we can observe the 20 and 50 day rolling volatilities for crack spread below:
+The 5% Value at Risk on 1 month positions in the crack spread is `r VAR`. This does not count for liquidity risk day to day, but gives us a sense of how much we can lose entering long today and exiting in a month from now. VAR indicates more tail risk on short positions than long positions. A more detailed visual is below:
 
-```{r}
+```{r, echo = FALSE}
+# Display
+var_monthly_hist
+```
+
+To get a sense of the chances of getting closed out early due to daily volatility (liquidity risk), we can observe the 20 and 50 day rolling volatility for crack spread below:
+
+```{r, echo = FALSE}
 #Rolling Volatility Crack Spread
 ```
 
-From this we can conclude that our best outcome in the worst 10% of cases is `r` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more sutiable.
+From this we can conclude that our best outcome in the worst 5% of cases is `r VAR` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more suitable.
 
 ## Appendix
 
-### Regression
+### Regression, Primary Model
 
-```{r}
+```{r, echo = FALSE}
 final_reg_graph
 final_reg_p %>% dplyr::select(R_Squared = r.squared, 
                               Adj_R_Squared = adj.r.squared, 
@@ -934,7 +969,7 @@ final_reg_vif %>% kable()
 
 ### How does each driver factor into forecasted price?
 
-```{r}
+```{r, echo = FALSE}
 forecast_latest_df$`(Intercept)` <- 1
 df1 <- forecast_latest_df %>% t() %>% as.data.frame() %>% rownames_to_column(var = "Market_Driver") %>% 
   drop_na()
@@ -947,9 +982,6 @@ df3 %>% kable()
 df3 %>% summarise(Estimate = sum(Value)) %>% kable()
 
 ```
-Note the inclusion of lower significance drivers. Often times, its good to include 
-
-### Development Notes
 
 ```{r, Developer Notes, echo = FALSE}
 # A place for the developer to note potential features and future directions to take the model.
