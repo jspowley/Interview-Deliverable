@@ -502,6 +502,12 @@ data_vif_adj %>%
        y = "Price",
        legend = "Legend")
 
+# Now for the final step, we need to extrapolate our drivers to today, to predict the crack spread price and compare to the current market price. We can do this in a variety of ways. 
+
+# 1. For random walks, we will hold our assumption constant from the last observed market price.
+# 2. For data with more structure, we can do an additive or STL decomposition to remove seasonality and trend, and do an ARMA model on the residuals.
+
+# Note: this is the step where having higher frequency data, through subscriptions and data provider services really pays off. Reducing the extrapolation period can significantly improve model accuracy resulting in a stronger competitive edge.
 ```
 
 
