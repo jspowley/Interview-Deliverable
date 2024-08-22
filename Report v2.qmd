@@ -557,12 +557,12 @@ time_diff <- as.numeric(time_diff)
 periodicity <- 7
 forecast_end <- (time_diff/periodicity) %>% ceiling()
 
-forecast_end <- 2
-
 # US_Crude_Inventory_PF <- 0
 if(forecast_end > 0){
   # When the report is not up to date, do the following forecast, and interpolate
-  forecast <- forecast(US_CI_Fit, h = forecast_end) %>% as.data.frame() %>% .$`Point Forecast`
+  forecast <- forecast(US_CI_Fit, h = forecast_end) %>% as.data.frame()
+  # print(forecast)
+  forecast <- forecast %>% .$`Point Forecast`
   
   if(forecast_end == 1){
     start_value <- fundamentals_data %>% 
@@ -593,6 +593,19 @@ if(forecast_end > 0){
 
 US_Crude_Inventory_PF
 ```
+```{r, generalized forecasting functions}
+# Let's standardize our forecasting process for the other 8 variables
+
+# Step 1: Filter Data for series, cleanup
+# Step 2: Prep TS
+# Step 3: Initial ACF/PACF
+# Step 4: Fit Model
+# Step 5: Summarize and Q-Stat
+# Step 6: Residual ACF/PACF
+# Step 7: Interpolate Results to Match Current Date
+
+```
+
 
 ```{r, Forecasting Truck Tonnage}
 # On quick observation, tonnage is nicely formatted as monthly data, without awkward gaps or compressions in the consistency of time reported.
@@ -625,6 +638,7 @@ time_diff <- (Sys.Date() - last_date) %>% as.numeric()
 
 forecast_end
 point_forecast <- forecast(fit, h = forecast_end) %>% as.data.frame() %>% .$`Point Forecast`
+
 
 ```
 
