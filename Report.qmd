@@ -20,6 +20,7 @@ library(corrplot)
 library(broom)
 library(car)
 library(ggfortify)
+library(tseries)
 
 # Note that sometimes the lack of an API sometimes necessitates loading from excel worksheets.
 # This is not the equivalent of modeling in excel, it's instead just another mechanism for us to load data automatically into the model.
@@ -289,6 +290,9 @@ for(s in fundamentals_data$series %>% unique()){
  s_graph(fundamentals_data, s) %>% print()
 }
 
+for(s in FHWA_Data$series %>% unique()){
+ s_graph(FHWA_Data, s) %>% print()
+}
 # Notes: Some indicators here track with GDP (Note the strong uptrend. To incorporate these, we may consider normalizing each index to start at 1, and then net the difference between GDP and the other indicator, making a spread)
 ```
 
@@ -415,7 +419,7 @@ wide_agg %>%
   cor()
 ```
 
-```{r, lm1}
+```{r, linear model}
 lm1 <- uninterpolated_data %>% lm(Crack_Spread ~ ., data = .)
 lm1 %>% broom::tidy() %>% 
   arrange(p.value)
@@ -488,9 +492,11 @@ lm_vif_adjusted %>% broom::tidy() %>%
 lm_vif_adjusted %>% autoplot()
 data_vif_adj$prediction <- lm_vif_adjusted %>% predict()
 
-data_vif_adj %>% 
+data_with_prediction <- data_vif_adj %>% 
   dplyr::mutate(t = 1, t = cumsum(t)) %>% 
-  dplyr::left_join(uninterpolated_data_w_date %>% dplyr::select(t,date), by = "t") %>% 
+  dplyr::left_join(uninterpolated_data_w_date %>% dplyr::select(t,date), by = "t")
+  
+data_with_prediction %>% 
   dplyr::select(date, prediction, Crack_Spread) %>% 
   dplyr::rename(Prediction = prediction) %>% 
   pivot_longer(names_to = "Legend", cols = c("Prediction", "Crack_Spread")) %>% 
@@ -510,6 +516,71 @@ data_vif_adj %>%
 # Note: this is the step where having higher frequency data, through subscriptions and data provider services really pays off. Reducing the extrapolation period can significantly improve model accuracy resulting in a stronger competitive edge.
 ```
 
+```{r, forecasting independent variables}
+# Model data rounds to the closest week. For more precision in forecasting to today's date, we're returning to core data used for each indicator to forecast today's value.
+
+# US_Crude_Inventory
+# Inspection of the US Crude graph reveals it's likely a random walk. Fortunately, this data stream is very frequent and up to date, making forecasting simpler and more accurate.
+
+CI_ARMA <- fundamentals_data %>% 
+  dplyr::filter(series == "US_Crude_Inventory") %>% 
+  dplyr::filter(date >= start_date) %>% 
+  arrange(date) %>% 
+  ungroup() %>% 
+  dplyr::select(value) %>% 
+  as.ts()
+
+# High levels of autocorrelation justifies the use of integration / detrending. I expect this to be a random walk, so I integrate when ARMA modelling.
+CI_ARMA %>% acf(main = "ACF Plot Data")
+CI_ARMA %>% pacf(main = "PACF Plot Data")
+
+US_CI_Fit <- CI_ARMA %>% 
+  auto.arima()
+
+# The following demonstrates the removal of autocorrelation from the data
+US_CI_Fit$residuals %>% acf(main = "ACF Plot Residuals")
+US_CI_Fit$residuals %>% pacf(main = "PACF Plot Residuals")
+
+summary(US_CI_Fit)
+
+# Failing to reject the null indicates the residuals resemble white noise. Although our model may not exhibit the most accuracy, we are content leaving it here since this tells us there's likely little we can do to improve accuracy beyond this point. (White Noise left over)
+Box.test(US_CI_Fit$residuals, type = "Ljung-Box")
+
+# Time difference between today and 
+time_diff <- Sys.Date() - fundamentals_data %>% 
+  dplyr::filter(series == "US_Crude_Inventory") %>% 
+  dplyr::filter(date >= start_date) %>% 
+  .$date %>% 
+  max()
+
+time_diff <- as.numeric(time_diff)
+periodicity <- 7
+forecast_end <- (time_diff/periodicity) %>% ceiling()
+forecast_value <- forecast(US_CI_Fit, h = forecast_end) %>% as.data.frame() %>% .$`Point Forecast`
+# A later idea for risk is to run lo and hi 95 bands into the model, to add systematic risk bands to it. (Kind of like sensitivity analysis)
+# Not currently a necessary feature, but one which can be considered when more time is available.
+
+forecast_ratio <- as.numeric(time_diff/(forecast_end*periodicity))
+
+last_value <- fundamentals_data %>% 
+  dplyr::filter(series == "US_Crude_Inventory") %>% 
+  dplyr::filter(date == max(date)) %>% 
+  .$value
+
+# Interpolation between last data point and the forecasted data point, based on todays date
+US_Crude_Inventory_PF <- forecast_value * forecast_ratio + (1-forecast_ratio)*last_value
+```
+
+```{r, forecasting Truck Tonnage}
+# On quick observation, tonnage is nicely formatted as monthly data, without awkward gaps or compressions in the consistency of time reported.
+
+# Observing our previous graph on truck tonnage, I believe there may by some structural component to the data which can be tackled using decomposition.
+forecast_data <- fred_data %>% 
+  dplyr::filter(series == "Truck_Tonnage_Index") %>% 
+  arrange(date) %>% 
+  ungroup() %>% 
+  
+```
 
 ## Recommendation
 
