@@ -5,7 +5,7 @@ format: html
 editor: visual
 ---
 
-```{r, init, message = F, warning = F, error = F}
+```{r, init, message = F, warning = F, error = F, echo = F}
 library(tidyquant)
 library(tidyverse)
 library(RTL)
@@ -29,7 +29,7 @@ library(xlsx)
 EIA_API <- "UKCNbCB0m8aixfPBshQU3Jdlz2uZsEbG2HebvhHX"
 ```
 
-```{r, data_import}
+```{r, data_import, message = F, warning = F, error = F, echo = F}
 # Yahoo Finance
 tickers <- c("RB=F", "HO=F", "CL=F", "NG=F")
 start_date <- '2018-01-01'
@@ -66,7 +66,7 @@ fred_data <- tq_get(fred_tickers, get = "economic.data", from = start_date) %>%
 # I'd recommend incorporating Baltic Dry Index (BDI) for shipping by sea. Unfortunately these are metrics which require subscriptions, and as a result aren't included in this report.
 ```
 
-```{r, preprocessing, warning = F, message = F, error = F}
+```{r, preprocessing, warning = F, message = F, error = F, echo = F}
 add_ret_metrics <- function(df_in){
   # Accepts a df with columns value, series, date
   # Adds returns and cumulative return metrics for value.
@@ -112,7 +112,7 @@ price_data <- spread_data %>% dplyr::select(date, value = Crack_Spread) %>%
 fred_data <- fred_data %>% add_ret_metrics()
 ```
 
-```{r, eda, eval = FALSE}
+```{r, eda, eval = FALSE, echo = F}
 # Rolling Correlation of RBOB and WTI
 spread_data %>% 
   dplyr::mutate(static_cor = cor(WTI,RBOB),
@@ -167,7 +167,7 @@ price_data %>%
   geom_line(aes(x = date, y = value))
 ```
 
-```{r, Risk1}
+```{r, Risk1, echo = F}
 # price_data %>% 
 #   dplyr::filter(series == "Crack_Spread" | series == "RBOB" | series == "WTI" | series == "Heating_Oil") %>% 
 #   dplyr::mutate(series = case_when(series == "Crack_Spread" ~ "Crack Spread",
@@ -205,7 +205,7 @@ vol_comparison_2 <- price_data %>%
 # vol_comparison_2
 ```
 
-```{r, FHWA}
+```{r, FHWA, echo = F}
 # Pulling distance traveled estimates from FHWA
 # https://www.fhwa.dot.gov/policyinformation/travel_monitoring/tvt.cfm
 # Potential to create a fully automated workflow. For now, manually link the reports for the time period of interest.
@@ -267,7 +267,7 @@ seasonal_demand_1 <- FHWA_Data %>%
 # seasonal_demand_1
 ```
 
-```{r, more eda, eval = F}
+```{r, more eda, eval = F, echo = F}
 # Re-visualizing data every time I wanted to add another data source was getting inefficient;
 # Created a generalized line graph function
 s_graph <- function(data, series_name, start_date_in = start_date){
@@ -301,7 +301,7 @@ for(s in FHWA_Data$series %>% unique()){
 # Notes: Some indicators here track with GDP (Note the strong uptrend. To incorporate these, we may consider normalizing each index to start at 1, and then net the difference between GDP and the other indicator, making a spread)
 ```
 
-```{r, aggregation, model_prep}
+```{r, aggregation, model_prep, echo = F}
 # Note data misalignment. Reports may publish on non-trading days and therefore we need to approximate lining up time periods. For now, we will use the weekly close, and then match the week a report releases on.
 
 year_week_conversion <- function(df_in){
@@ -403,7 +403,7 @@ uninterpolated_data <- uninterpolated_data_w_date %>% dplyr::select(-date, -t)
 # uninterpolated_data
 ```
 
-```{r, demonstrational_graphics}
+```{r, demonstrational_graphics, echo = F}
 driver_graph_1 <- fred_data %>% dplyr::filter(series == "Truck_Tonnage_Index") %>% 
   dplyr::mutate(ret_pct = ret_pct * 10,
                 cret_pct = cumprod(1+ret_pct),
@@ -426,7 +426,7 @@ driver_graph_1 <- fred_data %>% dplyr::filter(series == "Truck_Tonnage_Index") %
 # driver_graph_1
 ```
 
-```{r, linear model}
+```{r, linear model, echo = F}
 # lm1 <- uninterpolated_data %>% lm(Crack_Spread ~ ., data = .)
 # lm1 %>% broom::tidy() %>% 
 #   arrange(p.value)
@@ -535,12 +535,12 @@ final_reg_graph <- data_with_prediction %>%
 # final_reg_vif
 ```
 
-```{r}
+```{r, echo = F}
 latest_data_df <- data.frame(temp = NA)
 forecast_latest_df <- data.frame(temp = NA)
 ```
 
-```{r, generalized forecasting function}
+```{r, generalized forecasting function, echo = F}
 # Let's standardize our forecasting process for the other 8 variables
 
 # Step 1: Filter Data for series, cleanup
@@ -652,7 +652,7 @@ examine_frequency <- function(df_in, series_name){
 }
 ```
 
-```{r, autoSTL function}
+```{r, autoSTL function, echo = F}
 
 autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_plot = F, date_filter = start_date){
   
@@ -709,7 +709,7 @@ autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_p
   
   #Debug Section, Contains Fixed Assignments. Comment out if not in use
 
-  # forecast_length <- 2
+  # forecast_length <- 0
 
   # Debug End
   
@@ -747,73 +747,74 @@ autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_p
 
 ```
 
-```{r, Forecasting}
+```{r, Forecasting, echo = F}
+show_all_charts <- FALSE
 
 #Appears to be a randnom walk, using direct ARIMA approach to integrate the model.
-crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, T)
+crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, show_all_charts)
 latest_data_df$US_Crude_Inventory <- crude_inv_model$last
 forecast_latest_df$US_Crude_Inventory <- crude_inv_model$pf
 
-tonnage_model <- auto_forecast(fred_data, "Truck_Tonnage_Index", 365/12, T)
-tonnage_model %>% review_f()
+tonnage_model <- auto_forecast(fred_data, "Truck_Tonnage_Index", 365/12, show_all_charts)
+#tonnage_model %>% review_f()
 latest_data_df$Truck_Tonnage_Index <- tonnage_model$last
 forecast_latest_df$Truck_Tonnage_Index <- tonnage_model$pf
   
-crude_prod_stl <- fundamentals_data %>% autoSTL(series_name = "US_Crude_Prod", 365/12, 12, 13, T)
-crude_prod_arma <- crude_prod_stl$arima_ready %>% auto_forecast("US_Crude_Prod", 365/12, T)
-crude_prod_arma %>% review_f()
+crude_prod_stl <- fundamentals_data %>% autoSTL(series_name = "US_Crude_Prod", 365/12, 12, 13, show_all_charts)
+crude_prod_arma <- crude_prod_stl$arima_ready %>% auto_forecast("US_Crude_Prod", 365/12, show_all_charts)
+#crude_prod_arma %>% review_f()
 latest_data_df$US_Crude_Prod <- crude_prod_stl$last
 forecast_latest_df$US_Crude_Prod <- crude_prod_stl$pf + crude_prod_arma$pf
 
 # FHWA_Data %>% examine_frequency("B_Miles_Driven")
-miles_stl <- FHWA_Data %>% autoSTL(series_name = "B_Miles_Driven", 365/12, 12, 13, T)
-miles_arima <- miles_stl$arima_ready %>% auto_forecast("B_Miles_Driven", 365/12, T)
-miles_arima %>% review_f()
+miles_stl <- FHWA_Data %>% autoSTL(series_name = "B_Miles_Driven", 365/12, 12, 13, show_all_charts)
+miles_arima <- miles_stl$arima_ready %>% auto_forecast("B_Miles_Driven", 365/12, show_all_charts)
+#miles_arima %>% review_f()
 latest_data_df$B_Miles_Driven <- miles_stl$last
 forecast_latest_df$B_Miles_Driven <- miles_stl$pf + miles_arima$pf
 
 # US_Gasoline_Production
 # fundamentals_data %>% examine_frequency("US_Gasoline_Production")
-gas_prod_stl <- fundamentals_data %>% autoSTL("US_Gasoline_Production", 7, 52, 53, T)
-gas_prod_arima <- gas_prod_stl$arima_ready %>% auto_forecast("US_Gasoline_Production", 7, T)
-gas_prod_arima %>% review_f()
+gas_prod_stl <- fundamentals_data %>% autoSTL("US_Gasoline_Production", 7, 52, 53, show_all_charts)
+gas_prod_arima <- gas_prod_stl$arima_ready %>% auto_forecast("US_Gasoline_Production", 7, show_all_charts)
+#gas_prod_arima %>% review_f()
 latest_data_df$US_Gasoline_Production <- gas_prod_stl$last
 forecast_latest_df$US_Gasoline_Production <- gas_prod_stl$pf + gas_prod_arima$pf
 
 # fundamentals_data %>% examine_frequency("US_Crude_NI")
-crude_ni_stl <- fundamentals_data %>% autoSTL("US_Crude_NI", 7, 52, 53, T)
-crude_ni_arima <- crude_ni_stl$arima_ready %>% auto_forecast("US_Crude_NI", 7, T)
-crude_ni_arima %>% review_f()
+crude_ni_stl <- fundamentals_data %>% autoSTL("US_Crude_NI", 7, 52, 53, show_all_charts)
+crude_ni_arima <- crude_ni_stl$arima_ready %>% auto_forecast("US_Crude_NI", 7, show_all_charts)
+#crude_ni_arima %>% review_f()
 latest_data_df$US_Crude_NI <- crude_ni_stl$last
 # model fit with 0 order, omitted from results
 forecast_latest_df$US_Crude_NI <- crude_ni_stl$pf
 
 # fundamentals_data %>% examine_frequency("US_Conventional_Stocks_Unblended")
-con_stock_stl <- fundamentals_data %>% autoSTL("US_Conventional_Stocks_Unblended", 365/12, 12, 13, T)
-con_stock_arima <- con_stock_stl$arima_ready %>% auto_forecast("US_Conventional_Stocks_Unblended", 365/12, T)
-con_stock_arima %>% review_f()
+con_stock_stl <- fundamentals_data %>% autoSTL("US_Conventional_Stocks_Unblended", 365/12, 12, 13, show_all_charts)
+con_stock_arima <- con_stock_stl$arima_ready %>% auto_forecast("US_Conventional_Stocks_Unblended", 365/12, show_all_charts)
+#con_stock_arima %>% review_f()
 latest_data_df$US_Conventional_Stocks_Unblended <- con_stock_stl$last
 forecast_latest_df$US_Conventional_Stocks_Unblended <-  con_stock_stl$pf + con_stock_arima$pf
 
 #Admittedly these next 2 variables don't do much (t-stat), however we include them since they are part of our framed problem, and there coefficients are minimal.
 # fundamentals_data %>% examine_frequency("Pct_Operable_Utilization")
-util_stl <- fundamentals_data %>% autoSTL("Pct_Operable_Utilization", 7, 52, 53, T)
-util_arima <- util_stl$arima_ready %>% auto_forecast("Pct_Operable_Utilization", 7, T)
-util_arima %>% review_f()
+util_stl <- fundamentals_data %>% autoSTL("Pct_Operable_Utilization", 7, 52, 53, show_all_charts)
+util_arima <- util_stl$arima_ready %>% auto_forecast("Pct_Operable_Utilization", 7, show_all_charts)
+#util_arima %>% review_f()
 latest_data_df$Pct_Operable_Utilization <- util_stl$last
 forecast_latest_df$Pct_Operable_Utilization <- util_stl$pf + util_arima$pf
 
 # fundamentals_data %>% examine_frequency("US_RBOB_Stocks_Unblended")
-rbob_un_stl <- fundamentals_data %>% autoSTL("US_RBOB_Stocks_Unblended", 365/12, 12, 13, T)
-rbob_un_arima <- rbob_un_stl$arima_ready %>% auto_forecast("US_RBOB_Stocks_Unblended", 365/12, T)
-rbob_un_arima %>% review_f()
+rbob_un_stl <- fundamentals_data %>% autoSTL("US_RBOB_Stocks_Unblended", 365/12, 12, 13, show_all_charts)
+rbob_un_arima <- rbob_un_stl$arima_ready %>% auto_forecast("US_RBOB_Stocks_Unblended", 365/12, show_all_charts)
+#rbob_un_arima %>% review_f()
 latest_data_df$US_RBOB_Stocks_Unblended <- rbob_un_stl$last
 # arima omitted, no fit
 forecast_latest_df$US_RBOB_Stocks_Unblended <- rbob_un_stl$pf
   
 ```
 
-```{r, model recommendation}
+```{r, model recommendation, echo = F}
 forecast_prediction <- predict(lm_vif_adjusted, forecast_latest_df %>% dplyr::select(-temp)) %>% round(digits = 2)
 
 prediction_last_observed <- predict(lm_vif_adjusted, latest_data_df %>% dplyr::select(-temp)) %>% round(digits = 2)
@@ -841,7 +842,7 @@ A few options exist to enter into a long position in the crack spread. Firstly, 
 
 The second option is to enter long into 2 gasoline and 1 heating oil contract, and then enter short into 3 crude oil contracts. Note that crude oil contracts volumes are 1000 barrels on the CME and RBOB and Heating Oil are 42,000 gallons (1000 Barrels). Using CME futures, this position emulates a crack spread position on 3000 barrels processed. On other exchanges the ratio of contracts may have to be adjusted accordingly.
 
-Note that in the event market data supports that opposite position at the time of reading, a short position can be obtained by reversing the described strategy exactly.
+Note: In the event market data supports that opposite position at the time of reading, a short position can be obtained by reversing the described strategy exactly.
 
 ## Rationale
 
@@ -852,6 +853,8 @@ Note that in the event market data supports that opposite position at the time o
 The prediction is driven by a regression model (shown above) consisting of **9 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
 
 Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data points.
+
+With no reversals between dependendent and independent variables, our model forecasts an upside potential of `r abs(current_price - forecast_prediction)` per barrel.
 
 ## Fundamental Market Drivers
 
@@ -867,29 +870,31 @@ Supply Side:
 -Percent Operable Utilization (Refineries) 
 -Gasoline Stocks, both RBOB and Conventional
 
-## Risk
+## Risk/Reward
 
 Model Risk:
 
-The equilibrium at which a crack spread is drawn towards may be different for different time periods, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model.
+Different time periods may have different equilibriums, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model.
 
 A second form of model rick comes from how linear regressions function. We have assumed here that our selected variables drive the crack spread, and that crack spread is the dependent variable. We know in fact, that this is not true. The various prices and supply/demand levels are cyclic. A high crack spread may incentivize processing at a faster pace, and thus affecting existing inventories. Existing inventories being high or low can affect the crack spread. In some cases our model will respond to the levels of the independent variables, where we see the crack spread converge to the expected level, and in some cases, our independent variables will change, adjusting our prediction.
 
-How then do we assess the underlying risk, knowing that our model's effectiveness can be disrupted?
+With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an upside potential of `r abs(current_price - forecast_prediction)` per barrel.
 
-Lets consider risk using two different standpoints that ignore model effectiveness. Let's just focus on the riskiness of the underlying asset.
+How then do we assess the underlying risk, knowing that our model's effectiveness can be disrupted? Focusing on the riskiness of the underlying asset is crucial, since it gives us an unbiased standpoint separate from our model.
 
-VAR \| Value at Risk
-
-Rolling Window Volatility
-
-Comparing Crack Spread to Crude
-
-Crack spread is more volatile than an outright position for a couple of reasons. Firstly, the crack spread is affected by 3 separate prices -- crude, gasoline and distillates. Secondly, the spread between the prices is nominally smaller than the prices themselves. Combined, this means an uncorrelated move in any of the 3 prices will often result in a proportionally larger move in the spread. This makes the spread more risky. This can be seen by comparing gasoline prices the crack spread prices below:
+Below is a 10% Value at Risk on 1 month positions in the crack spread. This does not count for liquidity risk day to day, but gives us a sense of how much we can lose entering long today and exiting in a month from now (no model considerations).
 
 ```{r}
-#Graph Goes Here
+#VAR Metrics
 ```
+
+To get a sense of the chances of getting closed out early due to daily volatility, we can observe the 20 and 50 day rolling volatilities for crack spread below:
+
+```{r}
+#Rolling Volatility Crack Spread
+```
+
+From this we can conclude that our best outcome in the worst 10% of cases is `r` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more sutiable.
 
 ## Appendix
 
