@@ -844,7 +844,7 @@ if(forecast_prediction > current_price){
 
 ## Recommendation
 
-The 3-2-1 crack spread looks `r recommendation2` based on market fundamentals. Our model predicts a crack spread of `r forecast_prediction` using forecasted values and `r prediction_last_observed` using the last observable data points. Based on the most recent 3-2-1 crack spread price of `r current_price`, a `r recommendation` position in the crack spread is recommended.
+The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the last observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
 
 ## Trading Strategy
 
@@ -859,7 +859,7 @@ Note: In the event market conditions change, and a short position is recommended
 ## Rationale
 
 ```{r, echo = FALSE}
-final_reg_graph
+# final_reg_graph
 ```
 
 The prediction is driven by a regression model (shown above) consisting of **9 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
@@ -885,22 +885,16 @@ Data was selected by a combination of higher correlations with the crack spread 
 * Percent Operable Utilization (Refineries) 
 * Gasoline Stocks, Conventional
 
-RBOB Stocks and Plant Utilization were also considered, but removed due to high VIF and low P Values.
-
 ## Risk/Reward
 
 Model Risk:
 
-Different time periods may have different equilibriums, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model.
+Different time periods may have different equilibriums, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model. Additionally, sometimes crack spread can in fact be the market driver. When crack spreads are high, we can expect crude net imports to increase, for example. This is undesirable, since it means our prediction will shift in the direction of the current price, rather than the other way around.
 
-A second form of model rick comes from how linear regressions function. We have assumed here that our selected variables drive the crack spread, and that crack spread is the dependent variable. We know in fact, that this is not true. The various prices and supply/demand levels are cyclic. A high crack spread may incentivize processing at a faster pace, and thus affecting existing inventories. Existing inventories being high or low can affect the crack spread. In some cases our model will respond to the levels of the independent variables, where we see the crack spread converge to the expected level, and in some cases, our independent variables will change, adjusting our prediction.
-
-With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an upside potential of `r abs(current_price - forecast_prediction)` per barrel.
-
-How then do we assess the underlying risk, knowing that our model's effectiveness can be disrupted? Focusing on the riskiness of the underlying asset is crucial, since it gives us an unbiased standpoint separate from our model.
+With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r abs(current_price - forecast_prediction)` per barrel.**
 
 ```{r, echo = FALSE, warning = F}
-#VAR Metrics
+# VAR Metrics
 var_monthly <- price_data %>% 
   dplyr::filter(series == "Crack_Spread") %>% 
   dplyr::mutate(monthly_cret = slide_dbl(ret_pct+1, prod, .before = 20, .complete = TRUE),
@@ -933,16 +927,16 @@ if(recommendation == "long"){
 }
 ```
 
-The 5% Value at Risk on 1 month positions in the crack spread is `r VAR`. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution for crack spread is shown below.
+We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution for crack spread is shown below.
 
 ```{r, echo = FALSE, warning = F}
 # Display
-var_monthly_hist
+# var_monthly_hist
 ```
 To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over, but also the tendency for volatility to spike for short periods:
 
 ```{r, echo = FALSE}
-#Rolling Volatility Crack Spread
+# Rolling Volatility Crack Spread
 rolling_vol <- price_data %>% 
   dplyr::filter(series == "Crack_Spread") %>% 
   dplyr::filter(date >= "2022-01-01") %>% 
@@ -960,7 +954,7 @@ rolling_vol <- price_data %>%
        title = "Rolling Volatilities of Crack Spread",
        subtitle = "20 day, 50 Day, 200 Day and Average")
 
-rolling_vol
+# rolling_vol
 ```
 
 From this we can conclude that our best outcome in the worst 5% of cases is `r VAR` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more suitable.
