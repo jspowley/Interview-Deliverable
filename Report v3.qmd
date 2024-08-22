@@ -794,7 +794,22 @@ forecast_latest_df$US_RBOB_Stocks_Unblended <- rbob_un_stl$pf
   
 ```
 
+```{r, model recommendation}
+forecast_prediction <- predict(lm_vif_adjusted, forecast_latest_df %>% dplyr::select(-temp))
+forecast_prediction
+
+prediction_last_observed <- predict(lm_vif_adjusted, latest_data_df %>% dplyr::select(-temp))
+prediction_last_observed
+
+current_price <- price_data %>%
+  filter(series == "Crack_Spread") %>% 
+  filter(date == max(date)) %>% 
+  .$value
+```
+
 ## Recommendation
+
+
 
 ## Rationale
 
@@ -816,6 +831,10 @@ Both Supply and Demand Side:
 -Mining Production Index (dropped due to High VIF)
 
 ## Risk
+
+Model Risk:
+
+The equilibrium at which a crack spread is drawn towards may be different for different time periods, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model.
 
 Crack spread is more volatile than an outright position for a couple of reasons. Firstly, the crack spread is affected by 3 separate prices -- crude, gasoline and distillates. Secondly, the spread between the prices is nominally smaller than the prices themselves. Combined, this means an uncorrelated move in any of the 3 prices will often result in a proportionally larger move in the spread. This makes the spread more risky. This can be seen by comparing gasoline prices the crack spread prices below:
 
