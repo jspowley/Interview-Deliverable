@@ -870,20 +870,22 @@ Because our predictors are updated at different frequencies and different time l
 
 Data was selected by a combination of higher correlations with the crack spread prices as well as higher data frequency supporting more timely decision making. See "How does each driver factor into forecasted price?" in the appendix for a more detailed breakdown.
 
-Demand Side: 
--Truck Tonnage 
--Billion Miles Driven
--US Crude Net Imports
+**Demand Side (Bullish) Factors:** 
 
-Supply Side: 
--US Crude Inventory 
--US Crude Production 
--US Gasoline Production
--US Crude Net Imports
--Percent Operable Utilization (Refineries) 
--Gasoline Stocks, Conventional
+* Truck Tonnage 
+* Billion Miles Driven
+* US Crude Net Imports
 
-RBOB Stocks and Plant Utilization were also considered, but removed due to high VIF and low  P Values.
+**Supply Side (Bearish) Factors:**
+
+* US Crude Inventory 
+* US Crude Production 
+* US Gasoline Production
+* US Crude Net Imports
+* Percent Operable Utilization (Refineries) 
+* Gasoline Stocks, Conventional
+
+RBOB Stocks and Plant Utilization were also considered, but removed due to high VIF and low P Values.
 
 ## Risk/Reward
 
@@ -897,7 +899,7 @@ With the previous factors in mind, assuming no reversals between dependent and i
 
 How then do we assess the underlying risk, knowing that our model's effectiveness can be disrupted? Focusing on the riskiness of the underlying asset is crucial, since it gives us an unbiased standpoint separate from our model.
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning = F}
 #VAR Metrics
 var_monthly <- price_data %>% 
   dplyr::filter(series == "Crack_Spread") %>% 
@@ -931,17 +933,34 @@ if(recommendation == "long"){
 }
 ```
 
-The 5% Value at Risk on 1 month positions in the crack spread is `r VAR`. This does not count for liquidity risk day to day, but gives us a sense of how much we can lose entering long today and exiting in a month from now. VAR indicates more tail risk on short positions than long positions. A more detailed visual is below:
+The 5% Value at Risk on 1 month positions in the crack spread is `r VAR`. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution for crack spread is shown below.
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning = F}
 # Display
 var_monthly_hist
 ```
-
-To get a sense of the chances of getting closed out early due to daily volatility (liquidity risk), we can observe the 20 and 50 day rolling volatility for crack spread below:
+To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over, but also the tendency for volatility to spike for short periods:
 
 ```{r, echo = FALSE}
 #Rolling Volatility Crack Spread
+rolling_vol <- price_data %>% 
+  dplyr::filter(series == "Crack_Spread") %>% 
+  dplyr::filter(date >= "2022-01-01") %>% 
+  dplyr::mutate(sd20 = slide_dbl(ret_pct, sd, .before = 20, .complete = TRUE)) %>% 
+  dplyr::mutate(sd50 = slide_dbl(ret_pct, sd, .before = 50, .complete = TRUE)) %>% 
+  dplyr::mutate(sd200 = slide_dbl(ret_pct, sd, .before = 200, .complete = TRUE)) %>% 
+  dplyr::mutate(static_sd = sd(ret_pct)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(date, sd20, sd50, sd200, static_sd) %>% 
+  pivot_longer(cols = c("sd20", "sd50", "sd200", "static_sd")) %>% 
+  ggplot(aes(color = name)) +
+  geom_line(aes(x = date, y = value)) +
+  labs(y = "Volatility of Returns",
+       x = "Date",
+       title = "Rolling Volatilities of Crack Spread",
+       subtitle = "20 day, 50 Day, 200 Day and Average")
+
+rolling_vol
 ```
 
 From this we can conclude that our best outcome in the worst 5% of cases is `r VAR` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more suitable.
@@ -981,6 +1000,14 @@ df3 <- left_join(df2,df1,by="Market_Driver") %>% dplyr::mutate(Value = Coefficie
 df3 %>% kable()
 df3 %>% summarise(Estimate = sum(Value)) %>% kable()
 
+```
+
+### Risk Assessment Visuals
+
+```{r, echo = F, warning = F, message = F}
+vol_comparison_1 + labs(subtitle = "Crack Spread is more Volatile than RBOB")
+var_monthly_hist
+rolling_vol
 ```
 
 ```{r, Developer Notes, echo = FALSE}

@@ -6,9 +6,8 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Justin Powley">
 
-<title>Report</title>
+<title>Appendix Resources</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -24,16 +23,16 @@ ul.task-list li input[type="checkbox"] {
 </style>
 
 
-<script src="Report v5_files/libs/clipboard/clipboard.min.js"></script>
-<script src="Report v5_files/libs/quarto-html/quarto.js"></script>
-<script src="Report v5_files/libs/quarto-html/popper.min.js"></script>
-<script src="Report v5_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="Report v5_files/libs/quarto-html/anchor.min.js"></script>
-<link href="Report v5_files/libs/quarto-html/tippy.css" rel="stylesheet">
-<link href="Report v5_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="Report v5_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="Report v5_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="Report v5_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script src="Appendix Tags_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Appendix Tags_files/libs/quarto-html/quarto.js"></script>
+<script src="Appendix Tags_files/libs/quarto-html/popper.min.js"></script>
+<script src="Appendix Tags_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Appendix Tags_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Appendix Tags_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Appendix Tags_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Appendix Tags_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Appendix Tags_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Appendix Tags_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 
 
 </head>
@@ -46,19 +45,13 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Report</h1>
+<h1 class="title">Appendix Resources</h1>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
-    <div>
-    <div class="quarto-title-meta-heading">Author</div>
-    <div class="quarto-title-meta-contents">
-             <p>Justin Powley </p>
-          </div>
-  </div>
     
   
     
@@ -69,301 +62,8 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="recommendation" class="level2">
-<h2 class="anchored" data-anchor-id="recommendation">Recommendation</h2>
-<p>The 3-2-1 crack spread looks bullish based on market fundamentals. Our model predicts a crack spread of 29.95 using forecasted values and 28.65 using the last observable data points. Based on the most recent 3-2-1 crack spread price of 21.31, a long position in the crack spread is recommended.</p>
-</section>
-<section id="trading-strategy" class="level2">
-<h2 class="anchored" data-anchor-id="trading-strategy">Trading Strategy</h2>
-<p>A long position in the crack spread can be entered in one of two ways:</p>
-<ol type="1">
-<li><p>Enter using a long crack spread futures contract. By locking in the price of the crack spread today, we will profit if the crack spread increases.</p></li>
-<li><p>Enter long into 2 gasoline and 1 heating oil futures contract, and then enter short into 3 crude oil contracts. Note that crude oil contract volumes are 1000 barrels on the CME and RBOB and Heating Oil volumes are 42,000 gallons (1000 Barrels).</p></li>
-</ol>
-<p>Note: In the event market conditions change, and a short position is recommended, enter the opposite of the above position.</p>
-</section>
-<section id="rationale" class="level2">
-<h2 class="anchored" data-anchor-id="rationale">Rationale</h2>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="Report-v5_files/figure-html/unnamed-chunk-2-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>The prediction is driven by a regression model (shown above) consisting of <strong>9 market drivers</strong>, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the <strong>regression model</strong> makes use of aligned monthly data points, without interpolation, it’s better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.</p>
-<p>Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. <strong>STL decomposition</strong> is used to capture larger structural patterns such as seasonality and trend, and <strong>ARIMA models</strong> are then used to capture remaining dependency in the residuals. This allows us to predict today’s fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data.</p>
-</section>
-<section id="fundamental-market-drivers" class="level2">
-<h2 class="anchored" data-anchor-id="fundamental-market-drivers">Fundamental Market Drivers</h2>
-<p>Data was selected by a combination of higher correlations with the crack spread prices as well as higher data frequency supporting more timely decision making. See “How does each driver factor into forecasted price?” in the appendix for a more detailed breakdown.</p>
-<p><strong>Demand Side (Bullish) Factors:</strong></p>
-<ul>
-<li>Truck Tonnage</li>
-<li>Billion Miles Driven</li>
-<li>US Crude Net Imports</li>
-</ul>
-<p><strong>Supply Side (Bearish) Factors:</strong></p>
-<ul>
-<li>US Crude Inventory</li>
-<li>US Crude Production</li>
-<li>US Gasoline Production</li>
-<li>US Crude Net Imports</li>
-<li>Percent Operable Utilization (Refineries)</li>
-<li>Gasoline Stocks, Conventional</li>
-</ul>
-<p>RBOB Stocks and Plant Utilization were also considered, but removed due to high VIF and low P Values.</p>
-</section>
-<section id="riskreward" class="level2">
-<h2 class="anchored" data-anchor-id="riskreward">Risk/Reward</h2>
-<p>Model Risk:</p>
-<p>Different time periods may have different equilibriums, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model.</p>
-<p>A second form of model rick comes from how linear regressions function. We have assumed here that our selected variables drive the crack spread, and that crack spread is the dependent variable. We know in fact, that this is not true. The various prices and supply/demand levels are cyclic. A high crack spread may incentivize processing at a faster pace, and thus affecting existing inventories. Existing inventories being high or low can affect the crack spread. In some cases our model will respond to the levels of the independent variables, where we see the crack spread converge to the expected level, and in some cases, our independent variables will change, adjusting our prediction.</p>
-<p>With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an upside potential of 8.64 per barrel.</p>
-<p>How then do we assess the underlying risk, knowing that our model’s effectiveness can be disrupted? Focusing on the riskiness of the underlying asset is crucial, since it gives us an unbiased standpoint separate from our model.</p>
-<p>The 5% Value at Risk on 1 month positions in the crack spread is -0.282. This does not count for liquidity risk day to day, but gives us a sense of how much we can lose entering long today and exiting in a month from now. VAR indicates more tail risk on short positions than long positions. A more detailed visual is below:</p>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="Report-v5_files/figure-html/unnamed-chunk-4-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-</div>
-<p>To get a sense of the chances of getting closed out early due to daily volatility (liquidity risk), we can observe the 20 and 50 day rolling volatility for crack spread below:</p>
-<p>From this we can conclude that our best outcome in the worst 5% of cases is -0.282 and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more suitable.</p>
-</section>
-<section id="appendix" class="level2">
-<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
-<section id="regression-primary-model" class="level3">
-<h3 class="anchored" data-anchor-id="regression-primary-model">Regression, Primary Model</h3>
-<div class="cell">
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="Report-v5_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-<div class="cell-output-display">
-<table class="table table-sm table-striped small">
-<colgroup>
-<col style="width: 13%">
-<col style="width: 19%">
-<col style="width: 12%">
-<col style="width: 8%">
-<col style="width: 22%">
-<col style="width: 11%">
-<col style="width: 12%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: right;">R_Squared</th>
-<th style="text-align: right;">Adj_R_Squared</th>
-<th style="text-align: right;">SD</th>
-<th style="text-align: right;">P_Val</th>
-<th style="text-align: right;">Degrees_Freedom</th>
-<th style="text-align: right;">AIC</th>
-<th style="text-align: right;">BIC</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">0.719456</td>
-<td style="text-align: right;">0.6905765</td>
-<td style="text-align: right;">5.798058</td>
-<td style="text-align: right;">0</td>
-<td style="text-align: right;">7</td>
-<td style="text-align: right;">492.369</td>
-<td style="text-align: right;">513.3456</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="cell-output-display">
-<table class="table table-sm table-striped small">
-<colgroup>
-<col style="width: 47%">
-<col style="width: 17%">
-<col style="width: 21%">
-<col style="width: 14%">
-</colgroup>
-<thead>
-<tr class="header">
-<th style="text-align: left;">Market_Driver</th>
-<th style="text-align: right;">Coefficient</th>
-<th style="text-align: right;">Standard_Error</th>
-<th style="text-align: right;">P_Val</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_Inventory</td>
-<td style="text-align: right;">-0.0000566</td>
-<td style="text-align: right;">0.0000055</td>
-<td style="text-align: right;">0.0000000</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Truck_Tonnage_Index</td>
-<td style="text-align: right;">1.3417368</td>
-<td style="text-align: right;">0.3405385</td>
-<td style="text-align: right;">0.0001947</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_Prod</td>
-<td style="text-align: right;">-0.0001285</td>
-<td style="text-align: right;">0.0000352</td>
-<td style="text-align: right;">0.0005084</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">B_Miles_Driven</td>
-<td style="text-align: right;">0.1354029</td>
-<td style="text-align: right;">0.0529012</td>
-<td style="text-align: right;">0.0127094</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Gasoline_Production</td>
-<td style="text-align: right;">-0.0024429</td>
-<td style="text-align: right;">0.0013334</td>
-<td style="text-align: right;">0.0713117</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">US_Conventional_Stocks_Unblended</td>
-<td style="text-align: right;">-0.0001306</td>
-<td style="text-align: right;">0.0001098</td>
-<td style="text-align: right;">0.2382666</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_NI</td>
-<td style="text-align: right;">-0.0007536</td>
-<td style="text-align: right;">0.0006563</td>
-<td style="text-align: right;">0.2548664</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">(Intercept)</td>
-<td style="text-align: right;">30.4375111</td>
-<td style="text-align: right;">43.8930191</td>
-<td style="text-align: right;">0.4903906</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="cell-output-display">
-<div>
-<figure class="figure">
-<p><img src="Report-v5_files/figure-html/unnamed-chunk-6-2.png" class="img-fluid figure-img" width="672"></p>
-</figure>
-</div>
-</div>
-<div class="cell-output-display">
-<table class="table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: left;"></th>
-<th style="text-align: right;">VIF</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">B_Miles_Driven</td>
-<td style="text-align: right;">3.227413</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">US_Crude_Prod</td>
-<td style="text-align: right;">2.505679</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Gasoline_Production</td>
-<td style="text-align: right;">2.363249</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">US_Conventional_Stocks_Unblended</td>
-<td style="text-align: right;">2.048704</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_Inventory</td>
-<td style="text-align: right;">1.630329</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Truck_Tonnage_Index</td>
-<td style="text-align: right;">1.588773</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_NI</td>
-<td style="text-align: right;">1.520674</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</section>
-<section id="how-does-each-driver-factor-into-forecasted-price" class="level3">
-<h3 class="anchored" data-anchor-id="how-does-each-driver-factor-into-forecasted-price">How does each driver factor into forecasted price?</h3>
-<div class="cell">
-<div class="cell-output-display">
-<table class="table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: left;">Market_Driver</th>
-<th style="text-align: right;">Value</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_Inventory</td>
-<td style="text-align: right;">-93.864823</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Truck_Tonnage_Index</td>
-<td style="text-align: right;">153.315307</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_Prod</td>
-<td style="text-align: right;">-52.272435</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">B_Miles_Driven</td>
-<td style="text-align: right;">38.147852</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Gasoline_Production</td>
-<td style="text-align: right;">-23.458260</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">US_Conventional_Stocks_Unblended</td>
-<td style="text-align: right;">-20.595344</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">US_Crude_NI</td>
-<td style="text-align: right;">-1.756954</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">(Intercept)</td>
-<td style="text-align: right;">30.437511</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="cell-output-display">
-<table class="table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: right;">Estimate</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: right;">29.95285</td>
-</tr>
-</tbody>
-</table>
-</div>
-</div>
-</section>
-</section>
+<p>Pct_Operable_Utilization US_RBOB_Stocks_Unblended</p>
+<p><strong>Header</strong> * List 1 * List 2</p>
 
 </main>
 <!-- /main column -->
