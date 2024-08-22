@@ -719,6 +719,7 @@ autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_p
   output_list$fit <- fit
   
   res_df <- fit$time.series[, "remainder"] %>% as.data.frame()
+  
   output_list$arima_ready <- cbind(data_in, res_df) %>% dplyr::mutate(value = x)
   
   return(output_list)
@@ -727,57 +728,70 @@ autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_p
 ```
 
 
-```{r}
+```{r, Forecasting}
 
-crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, F)
+#Appears to be a randnom walk, using direct ARIMA approach to integrate the model.
+crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, T)
 latest_data_df$US_Crude_Inventory <- crude_inv_model$last
 forecast_latest_df$US_Crude_Inventory <- crude_inv_model$pf
 
-tonnage_model <- auto_forecast(fred_data, "Truck_Tonnage_Index", 365/12, F)
-# tonnage_model %>% review_f()
+tonnage_model <- auto_forecast(fred_data, "Truck_Tonnage_Index", 365/12, T)
+tonnage_model %>% review_f()
 latest_data_df$Truck_Tonnage_Index <- tonnage_model$last
 forecast_latest_df$Truck_Tonnage_Index <- tonnage_model$pf
-
-# crude_prod_model <- auto_forecast(fundamentals_data, "US_Crude_Prod", 365/12, T)
-# In prior review, crude production tracks with GDP growth. With this in mind, I filtered out to just post 2020 data to remove the level shift in 2020.
   
 crude_prod_stl <- fundamentals_data %>% autoSTL(series_name = "US_Crude_Prod", 365/12, 12, 13, T)
-crude_prod_arma <- crude_prod_stl$arima_ready %>% auto_forecast()
-```
+crude_prod_arma <- crude_prod_stl$arima_ready %>% auto_forecast("US_Crude_Prod", 365/12, T)
+crude_prod_arma %>% review_f()
+latest_data_df$US_Crude_Prod <- crude_prod_stl$last
+forecast_latest_df$US_Crude_Prod <- crude_prod_stl$pf + crude_prod_arma$pf
 
-```{r, Forecasting Truck Tonnage}
-# On quick observation, tonnage is nicely formatted as monthly data, without awkward gaps or compressions in the consistency of time reported.
+# FHWA_Data %>% examine_frequency("B_Miles_Driven")
+miles_stl <- FHWA_Data %>% autoSTL(series_name = "B_Miles_Driven", 365/12, 12, 13, T)
+miles_arima <- miles_stl$arima_ready %>% auto_forecast("B_Miles_Driven", 365/12, T)
+miles_arima %>% review_f()
+latest_data_df$B_Miles_Driven <- miles_stl$last
+forecast_latest_df$B_Miles_Driven <- miles_stl$pf + miles_arima$pf
 
-# Observing our previous graph on truck tonnage, I believe there may by some structural component to the data which can be tackled using decomposition.
-forecast_data <- fred_data %>% 
-  dplyr::filter(series == "Truck_Tonnage_Index") %>% 
-  arrange(date) %>% 
-  ungroup()
+# US_Gasoline_Production
+# fundamentals_data %>% examine_frequency("US_Gasoline_Production")
+gas_prod_stl <- fundamentals_data %>% autoSTL("US_Gasoline_Production", 7, 52, 53, T)
+gas_prod_arima <- gas_prod_stl$arima_ready %>% auto_forecast("US_Gasoline_Production", 7, T)
+gas_prod_arima %>% review_f()
+latest_data_df$US_Gasoline_Production <- gas_prod_stl$last
+forecast_latest_df$US_Gasoline_Production <- gas_prod_stl$pf + gas_prod_arima$pf
 
-arma_ready <- forecast_data %>% 
-  dplyr::select(value) %>% 
-  as.ts()
+# fundamentals_data %>% examine_frequency("US_Crude_NI")
+crude_ni_stl <- fundamentals_data %>% autoSTL("US_Crude_NI", 7, 52, 53, T)
+crude_ni_arima <- crude_ni_stl$arima_ready %>% auto_forecast("US_Crude_NI", 7, T)
+crude_ni_arima %>% review_f()
+latest_data_df$US_Crude_NI <- crude_ni_stl$last
+# model fit with 0 order, omitted from results
+forecast_latest_df$US_Crude_NI <- crude_ni_stl$pf
 
-arma_ready %>% acf(main = "ACF Data")
-arma_ready %>% pacf(main = "PACF Data")
-# Autocorrelation visible, suggesting trend caused by p=1.
-fit <- arma_ready %>% auto.arima()
-# We auto-fit with p=1, q=0, as predicted. This process is auto-regressive.
-summary(fit)
-Box.test(fit$residuals, type = "Ljung-Box")
-# Failing to reject the null, our residuals appear to be white noise, however is slightly more ambigious than in the crude case. (P Value of 0.32 means a true white noise process would have ~32% chance of producing what we observe in the residuals.)
-fit$residuals %>% acf(main = "ACF of Residuals")
-fit$residuals %>% pacf(main = "PACF of Residuals")
+# fundamentals_data %>% examine_frequency("US_Conventional_Stocks_Unblended")
+con_stock_stl <- fundamentals_data %>% autoSTL("US_Conventional_Stocks_Unblended", 365/12, 12, 13, T)
+con_stock_arima <- con_stock_stl$arima_ready %>% auto_forecast("US_Conventional_Stocks_Unblended", 365/12, T)
+con_stock_arima %>% review_f()
+latest_data_df$US_Conventional_Stocks_Unblended <- con_stock_stl$last
+forecast_latest_df$US_Conventional_Stocks_Unblended <-  con_stock_stl$pf + con_stock_arima$pf
 
-# Rough Approximation
-periodicity <- 365/12
-last_date <- forecast_data %>% dplyr::filter(date == max(date)) %>% .$date
-time_diff <- (Sys.Date() - last_date) %>% as.numeric()
+#Admittedly these next 2 variables don't do much (t-stat), however we include them since they are part of our framed problem, and there coefficients are minimal.
+# fundamentals_data %>% examine_frequency("Pct_Operable_Utilization")
+util_stl <- fundamentals_data %>% autoSTL("Pct_Operable_Utilization", 7, 52, 53, T)
+util_arima <- util_stl$arima_ready %>% auto_forecast("Pct_Operable_Utilization", 7, T)
+util_arima %>% review_f()
+latest_data_df$Pct_Operable_Utilization <- util_stl$last
+forecast_latest_df$Pct_Operable_Utilization <- util_stl$pf + util_arima$pf
 
-forecast_end
-point_forecast <- forecast(fit, h = forecast_end) %>% as.data.frame() %>% .$`Point Forecast`
-
-
+# fundamentals_data %>% examine_frequency("US_RBOB_Stocks_Unblended")
+rbob_un_stl <- fundamentals_data %>% autoSTL("US_RBOB_Stocks_Unblended", 365/12, 12, 13, T)
+rbob_un_arima <- rbob_un_stl$arima_ready %>% auto_forecast("US_RBOB_Stocks_Unblended", 365/12, T)
+rbob_un_arima %>% review_f()
+latest_data_df$US_RBOB_Stocks_Unblended <- rbob_un_stl$last
+# arima omitted, no fit
+forecast_latest_df$US_RBOB_Stocks_Unblended <- rbob_un_stl$pf
+  
 ```
 
 ## Recommendation
