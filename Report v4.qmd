@@ -344,35 +344,35 @@ wide_agg <- wide_agg %>% left_join(date_key, by = "year_week")
 # Opted for linear interpolation due to a lack of high frequency data. Later, we will conduct additional decomposition and ARIMA models for those which exhibit more structured behavior.
 
 # Interpolated
-wide_agg %>% 
-  ungroup() %>% 
-  dplyr::mutate(B_Miles_Driven = na.interp(B_Miles_Driven),
-                Mining_Production_Index = na.interp(Mining_Production_Index),
-                Truck_Tonnage_Index = na.interp(Truck_Tonnage_Index),
-                US_GDP = na.interp(US_GDP),
-                US_Conventional_Stocks_Unblended = na.interp(US_Conventional_Stocks_Unblended),
-                US_Crude_Prod = na.interp(US_Crude_Prod),
-                US_Gasoline_Stocks_Blended = na.interp(US_Gasoline_Stocks_Blended),
-                US_RBOB_Stocks_Unblended = na.interp(US_RBOB_Stocks_Unblended)
-                ) %>% 
-  dplyr::select(-date, -year_week, -Heating_Oil, - WTI, -RBOB, -Lower48NGStorage, - Natural_Gas) %>% 
-  drop_na() %>% 
-  cor() %>% 
-  # Credit to ChatGPT for improved formatting on this CorrPlot
-  corrplot( 
-         method = "color",
-         col = colorRampPalette(c("#6D9EC1", "white", "#E46726"))(200),
-         type = "upper",
-         order = "hclust",
-         addCoef.col = "black",
-         tl.col = "black",
-         tl.srt = 45,
-         diag = FALSE,
-         number.cex = 0.6,
-         addshade = "positive",
-         cl.lim = c(-1, 1),
-         mar = c(0, 0, 1, 0)
-)
+# wide_agg %>% 
+#   ungroup() %>% 
+#   dplyr::mutate(B_Miles_Driven = na.interp(B_Miles_Driven),
+#                 Mining_Production_Index = na.interp(Mining_Production_Index),
+#                 Truck_Tonnage_Index = na.interp(Truck_Tonnage_Index),
+#                 US_GDP = na.interp(US_GDP),
+#                 US_Conventional_Stocks_Unblended = na.interp(US_Conventional_Stocks_Unblended),
+#                 US_Crude_Prod = na.interp(US_Crude_Prod),
+#                 US_Gasoline_Stocks_Blended = na.interp(US_Gasoline_Stocks_Blended),
+#                 US_RBOB_Stocks_Unblended = na.interp(US_RBOB_Stocks_Unblended)
+#                 ) %>% 
+#   dplyr::select(-date, -year_week, -Heating_Oil, - WTI, -RBOB, -Lower48NGStorage, - Natural_Gas) %>% 
+#   drop_na() %>% 
+#   cor() %>% 
+#   # Credit to ChatGPT for improved formatting on this CorrPlot
+#   corrplot( 
+#          method = "color",
+#          col = colorRampPalette(c("#6D9EC1", "white", "#E46726"))(200),
+#          type = "upper",
+#          order = "hclust",
+#          addCoef.col = "black",
+#          tl.col = "black",
+#          tl.srt = 45,
+#          diag = FALSE,
+#          number.cex = 0.6,
+#          addshade = "positive",
+#          cl.lim = c(-1, 1),
+#          mar = c(0, 0, 1, 0)
+# )
 
 # Non Interpolated
 uninterpolated_data_w_date <- wide_agg %>% 
@@ -383,28 +383,28 @@ uninterpolated_data_w_date <- wide_agg %>%
 
 uninterpolated_data <- uninterpolated_data_w_date %>% dplyr::select(-date, -t)
 
-uninterpolated_data %>% 
-  cor() %>% 
-  corrplot( 
-         method = "color",
-         col = colorRampPalette(c("#6D9EC1", "white", "#E46726"))(200),
-         type = "upper",
-         order = "hclust",
-         addCoef.col = "black",
-         tl.col = "black",
-         tl.srt = 45,
-         diag = FALSE,
-         number.cex = 0.6,
-         addshade = "positive",
-         cl.lim = c(-1, 1),
-         mar = c(0, 0, 1, 0)
-)
-
-uninterpolated_data
+# uninterpolated_data %>% 
+#   cor() %>% 
+#   corrplot( 
+#          method = "color",
+#          col = colorRampPalette(c("#6D9EC1", "white", "#E46726"))(200),
+#          type = "upper",
+#          order = "hclust",
+#          addCoef.col = "black",
+#          tl.col = "black",
+#          tl.srt = 45,
+#          diag = FALSE,
+#          number.cex = 0.6,
+#          addshade = "positive",
+#          cl.lim = c(-1, 1),
+#          mar = c(0, 0, 1, 0)
+# )
+# 
+# uninterpolated_data
 ```
 
 ```{r, demonstrational_graphics}
-fred_data %>% dplyr::filter(series == "Truck_Tonnage_Index") %>% 
+driver_graph_1 <- fred_data %>% dplyr::filter(series == "Truck_Tonnage_Index") %>% 
   dplyr::mutate(ret_pct = ret_pct * 10,
                 cret_pct = cumprod(1+ret_pct),
                 cret_pct = (cret_pct+1)*5-5) %>% 
@@ -417,11 +417,13 @@ fred_data %>% dplyr::filter(series == "Truck_Tonnage_Index") %>%
        title = "Truck Tonnage Influence on Crack Spreads & Heating Oil",
        x = "Date")
 
-wide_agg %>% 
-  ungroup() %>% 
-  drop_na() %>% 
-  dplyr::select(Truck_Tonnage_Index, Crack_Spread, Heating_Oil) %>% 
-  cor()
+# wide_agg %>% 
+#   ungroup() %>% 
+#   drop_na() %>% 
+#   dplyr::select(Truck_Tonnage_Index, Crack_Spread, Heating_Oil) %>% 
+#   cor()
+
+# driver_graph_1
 ```
 
 ```{r, linear model}
