@@ -25,6 +25,7 @@ library(ggfortify)
 library(tseries)
 library(kableExtra)
 library(patchwork)
+library(scales)
 
 # Note that sometimes the lack of an API sometimes necessitates loading from excel worksheets.
 # This is not the equivalent of modeling in excel, it's instead just another mechanism for us to load data automatically into the model.
@@ -312,7 +313,7 @@ seasonal_demand_1 <- FHWA_Data %>%
 ```
 
 ```{r test_space_1, eval = FALSE, echo = FALSE}
-FHWA_Data %>% s_graph("B_Miles_Driven")
+# FHWA_Data %>% s_graph("B_Miles_Driven")
 ```
 
 ```{r, s_graph, echo = F, warning = F}
@@ -897,6 +898,26 @@ if(forecast_prediction > current_price){
 upside_pot <- abs(current_price - forecast_prediction)
 ```
 
+```{r, backtest, echo = F}
+pl <- data_with_prediction %>% 
+  dplyr::select(date, prediction, Crack_Spread) %>% 
+  dplyr::mutate(long = prediction > Crack_Spread, yesterday_long = lag(long)) %>% 
+  dplyr::mutate(profit_loss = case_when(yesterday_long ~ Crack_Spread - lag(Crack_Spread),
+                                        TRUE ~ lag(Crack_Spread) - Crack_Spread)) %>% 
+  drop_na()
+
+pl_desc <- pl %>% summarise(Average_Profit_Loss = mean(profit_loss),
+                 SD_Profit_Loss = sd(profit_loss),
+                 Max_Monthly_Profit = max(profit_loss),
+                 Max_Monthly_Loss = min(profit_loss))
+
+
+
+pl_dist <- pl %>% ggplot() +
+  geom_histogram(aes(x = profit_loss, y = ..count../sum(..count..)), bins = 50) +
+  labs(title = "Backtested Profit and Loss, Per Crack Spread Barrel")
+```
+
 ## Recommendation
 
 ```{r, echo = F}
@@ -904,7 +925,7 @@ upside_pot <- abs(current_price - forecast_prediction)
 show_rc <- TRUE
 ```
 
-The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the most recently observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
+The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction %>% dollar()` using forecasted** values and **`r prediction_last_observed %>% dollar()` using the most recently observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price %>% dollar()`**, a **`r recommendation` position** in the crack spread is recommended.
 
 ## Trading Strategy
 
@@ -962,7 +983,7 @@ Data was selected by correlation with the crack spread prices and by data freque
 
 Model risk arises from structural changes to fundamental-price equilibrium. When this arises, it can be solved by aging out part of the training data for the regression model.
 
-Sometimes our market drivers will instead respond to the current crack spread. This results in our prediction moving instead of the market price. Assuming no reversals in dependency, our model forecasts an **upside potential of `r upside_pot` per barrel**, however this is likely overstated as our spread price and prediction may converge.
+Sometimes our market drivers will instead respond to the current crack spread. This results in our prediction moving instead of the market price. Assuming no reversals in dependency, our model forecasts an **upside potential of `r upside_pot %>% dollar()` per barrel**. As a point forecast, this number is likely overstated. Our **average upside potential based on back-testing is `r round(pl_desc$Average_Profit_Loss, digits = 2) %>% dollar()`** and our **standard deviation on PL is `r round(pl_desc$SD_Profit_Loss, digits = 2) %>% dollar()`**.
 
 ```{r, echo = FALSE, warning = F}
 # VAR Metrics
@@ -999,7 +1020,7 @@ if(recommendation == "long"){
 }
 ```
 
-We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. Our best outcome in the worst 5% of past cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions (Fig 1). Liquidity risk (the risk of closing out early) can be better assessed using rolling volatilities (Fig 2). Note that rolling 20 and 50 day volatilities are currently low, however note the tendency for 20 day volatilities to spike above average on occasion:
+We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR %>% percent()`**. Our **best outcome in the worst 5% of past cases is `r round(VAR * current_price, digits = 2) %>% dollar()` per barrel** on a 1 month position. Tail risk is more extreme for short positions than long positions (Fig 1). Liquidity risk (the risk of closing out early) can be better assessed using rolling volatilities (Fig 2). Note that rolling 20 and 50 day volatilities are currently low, however note the tendency for 20 day volatilities to spike above average on occasion:
 
 ```{r, echo = FALSE, warning = F, fig.width=8, fig.height=4}
 # Rolling Volatility Crack Spread
@@ -1148,4 +1169,11 @@ corrplot(
   #The third option can be improved with Jarque-Bera distribution on the error terms, to determine how "off" a particular day is.
 
 # Option 3 is preferable, since it can give us a band of expected prices today, and help us get a better sense of a strong/weak reversal potential.
+```
+
+##### Backtesting Profit and Loss Summary (Per Contract Barrel):
+
+```{r, backtesting, echo = FALSE}
+pl_desc %>% kable()
+pl_dist + labs(y = "Density", x = "PL per Contract Barrel")
 ```
