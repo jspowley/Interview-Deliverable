@@ -1,5 +1,5 @@
 ---
-title: "Report"
+title: "3-2-1 Crack Spread Recommendation"
 author: "Justin Powley"
 format: html
 editor: visual
@@ -840,12 +840,14 @@ if(forecast_prediction > current_price){
 } else {
   recommendation2 <- "bearish"
 }
+
+upside_pot <- abs(current_price - forecast_prediction)
 ```
 
 ## Recommendation
 
 ```{r, echo = F}
-# Option to display key charts within the written contents of the report.
+# Option to disable key charts within the written contents of the report. Helpful for tidy 2 page printing.
 # Written contents are 2 pages
 show_rc <- TRUE
 ```
@@ -870,9 +872,9 @@ if(show_rc){
 }
 ```
 
-The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
+The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. We choose which position to enter based on whether our prediction is higher or lower than the current price, assuming that our indicator and the market will at some point converge.
 
-Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data.
+Because our data is lagging (not live), forecasting models are developed for each market driver. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. A prediction using the last observable data points is also provided, as a reference to measure the influence of time series forecasting on the decision.
 
 ## Fundamental Market Drivers
 
@@ -899,7 +901,7 @@ Model Risk:
 
 Historic data may have different equilibriums for the same fundamentals' levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than a change in price.
 
-With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r abs(current_price - forecast_prediction)` per barrel.**
+With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r upside_pot` per barrel.**
 
 ```{r, echo = FALSE, warning = F}
 # VAR Metrics
@@ -935,7 +937,7 @@ if(recommendation == "long"){
 }
 ```
 
-We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution for crack spread is shown below.
+We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below:
 
 ```{r, echo = FALSE, warning = F}
 # Display
@@ -946,7 +948,7 @@ if(show_rc){
 ```
 To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods:
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, warning = F}
 # Rolling Volatility Crack Spread
 rolling_vol <- price_data %>% 
   dplyr::filter(series == "Crack_Spread") %>% 
@@ -969,6 +971,11 @@ if(show_rc){
   rolling_vol
 }
 ```
+
+
+
+
+
 
 ## Appendix
 
@@ -1042,10 +1049,17 @@ The **model order (p,d,q) is `r order1`** and the **q-stat p-value is `r q_stat1
 
 Below is an example of using STL to capture seasonal and trend components in more regular data. The function developed also returns an ARIMA ready data set of residuals, to generate further analysis as shown previously.
 
-**Below: Billion Miles Driven in the US**
+```{r, echo = F}
+miles_stl <- FHWA_Data %>% 
+  dplyr::filter(series == "B_Miles_Driven") %>% 
+  dplyr::mutate(series = "Billions of Miles Driven, US") %>% 
+  autoSTL(series_name = "Billions of Miles Driven, US", 365/12, 12, 13, T)
+```
 
-```{r}
-miles_stl <- FHWA_Data %>% autoSTL(series_name = "B_Miles_Driven", 365/12, 12, 13, T)
+### Additional Resources
+
+```{r, echo = FALSE}
+
 ```
 
 ```{r, Developer Notes, echo = FALSE}
