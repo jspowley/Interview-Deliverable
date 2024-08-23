@@ -5,6 +5,15 @@ format: html
 editor: visual
 ---
 
+```{r, main_settings, echo = FALSE}
+# Enable if rendering for printing. Will omit visuals from the main body to fit neatly within 2 pages.
+
+# NOTE TO INTERVIEWER: Set this to true if you intend to print a hard copy. Some visuals will be excluded from the main body for visual clarity.
+
+# Alternatively, set print size to 85% to fit up to two visuals per page.
+printer_ready <- FALSE
+```
+
 ```{r, init, message = F, warning = F, error = F, echo = F}
 library(tidyquant)
 library(tidyverse)
@@ -847,12 +856,17 @@ upside_pot <- abs(current_price - forecast_prediction)
 ## Recommendation
 
 ```{r, echo = F}
+# Preferred viewing format is as an HTML web page.
+
 # Option to disable key charts within the written contents of the report. Helpful for tidy 2 page printing.
+show_rc <- !printer_ready
+
+# Alternatively, in print settings choose 80%-85% zoom to fit up to 2 visuals per page.
+
 # Written contents are 2 pages
-show_rc <- TRUE
 ```
 
-The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the last observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
+The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the most recently observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
 
 ## Trading Strategy
 
@@ -872,9 +886,9 @@ if(show_rc){
 }
 ```
 
-The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. We choose which position to enter based on whether our prediction is higher or lower than the current price, assuming that our indicator and the market will at some point converge.
+The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway Administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. We choose which position to enter based on whether our prediction is higher or lower than the current price, assuming that our indicator and the market will at some point converge.
 
-Because our data is lagging (not live), forecasting models are developed for each market driver. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. A prediction using the last observable data points is also provided, as a reference to measure the influence of time series forecasting on the decision.
+Because our data is lagging (not live), forecasting models are developed for each market driver. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamental levels based on previous seasonality and trend. A prediction using the last observable data points is also provided, as a reference to measure the influence of time series forecasting on the decision.
 
 ## Fundamental Market Drivers
 
@@ -899,7 +913,7 @@ Data was selected by a combination of higher correlations with the crack spread 
 
 Model Risk:
 
-Historic data may have different equilibriums for the same fundamentals' levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than a change in price.
+Historic data may have different equilibriums for the same fundamentals' levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than in price.
 
 With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r upside_pot` per barrel.**
 
@@ -937,7 +951,7 @@ if(recommendation == "long"){
 }
 ```
 
-We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below:
+We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below and in the appendix:
 
 ```{r, echo = FALSE, warning = F}
 # Display
@@ -946,7 +960,8 @@ if(show_rc){
   var_monthly_hist
 }
 ```
-To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods:
+
+To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods. See the rolling volatility graphic.
 
 ```{r, echo = FALSE, warning = F}
 # Rolling Volatility Crack Spread

@@ -84,6 +84,15 @@ ul.task-list li input[type="checkbox"] {
 </section>
 <section id="rationale" class="level2">
 <h2 class="anchored" data-anchor-id="rationale">Rationale</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Report-v5_files/figure-html/unnamed-chunk-3-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 <p>The prediction is driven by a regression model (shown above) consisting of <strong>7 market drivers</strong>, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the <strong>regression model</strong> makes use of aligned monthly data points, without interpolation, it’s better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. We choose which position to enter based on whether our prediction is higher or lower than the current price, assuming that our indicator and the market will at some point converge.</p>
 <p>Because our data is lagging (not live), forecasting models are developed for each market driver. <strong>STL decomposition</strong> is used to capture larger structural patterns such as seasonality and trend, and <strong>ARIMA models</strong> are then used to capture remaining dependency in the residuals. This allows us to predict today’s fundamentals levels based on previous seasonality and trend. A prediction using the last observable data points is also provided, as a reference to measure the influence of time series forecasting on the decision.</p>
 </section>
@@ -111,8 +120,26 @@ ul.task-list li input[type="checkbox"] {
 <p>Model Risk:</p>
 <p>Historic data may have different equilibriums for the same fundamentals’ levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than a change in price.</p>
 <p>With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an <strong>upside potential of 8.64 per barrel.</strong></p>
-<p>We use Value at Risk because it gives us a less biased risk estimate independent from our model. The <strong>5% Value at Risk on 1 month positions in the crack spread is -0.282</strong>. From this we can estimate that our best outcome in the worst 5% of cases is -0.282 on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below and in the appendix:</p>
-<p>To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods. See the rolling volatility graphic.</p>
+<p>We use Value at Risk because it gives us a less biased risk estimate independent from our model. The <strong>5% Value at Risk on 1 month positions in the crack spread is -0.282</strong>. From this we can estimate that our best outcome in the worst 5% of cases is -0.282 on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below:</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Report-v5_files/figure-html/unnamed-chunk-5-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods:</p>
+<div class="cell">
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Report-v5_files/figure-html/unnamed-chunk-6-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
 </section>
 <section id="appendix" class="level2">
 <h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
