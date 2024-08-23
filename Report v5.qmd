@@ -5,15 +5,6 @@ format: html
 editor: visual
 ---
 
-```{r, main_settings, echo = FALSE}
-# Enable if rendering for printing. Will omit visuals from the main body to fit neatly within 2 pages.
-
-# NOTE TO INTERVIEWER: Set this to true if you intend to print a hard copy. Some visuals will be excluded from the main body for visual clarity.
-
-# Alternatively, set print size to 85% to fit up to two visuals per page.
-printer_ready <- FALSE
-```
-
 ```{r, init, message = F, warning = F, error = F, echo = F}
 library(tidyquant)
 library(tidyverse)
@@ -31,6 +22,7 @@ library(car)
 library(ggfortify)
 library(tseries)
 library(kableExtra)
+library(patchwork)
 
 # Note that sometimes the lack of an API sometimes necessitates loading from excel worksheets.
 # This is not the equivalent of modeling in excel, it's instead just another mechanism for us to load data automatically into the model.
@@ -277,7 +269,7 @@ seasonal_demand_1 <- FHWA_Data %>%
 # seasonal_demand_1
 ```
 
-```{r, more eda, eval = F, echo = F, warning = F}
+```{r, s_graph, echo = F, warning = F}
 # Re-visualizing data every time I wanted to add another data source was getting inefficient;
 # Created a generalized line graph function
 s_graph <- function(data, series_name, start_date_in = start_date){
@@ -289,7 +281,9 @@ s_graph <- function(data, series_name, start_date_in = start_date){
     labs(title = series_name) %>% 
     return()
 }
+```
 
+```{r, more eda, eval = F, echo = F, warning = F}
 # Fred
 for(s in fred_data$series %>% unique()){
  s_graph(fred_data, s) %>% print()
@@ -688,14 +682,14 @@ autoSTL <- function(data_in, series_name, period_days, freq, window_size, show_p
     dplyr::filter(date >= start_date) %>% 
     arrange(date)
   
-  if(show_plot){
-  line_plot <- data_in %>% 
-    ggplot() +
-    geom_line(aes(x = date, y = value)) +
-    labs(title = series_name)
-  
-  print(line_plot)
-  }
+   if(show_plot){
+   line_plot <- data_in %>% 
+     ggplot() +
+     geom_line(aes(x = date, y = value)) +
+     labs(title = series_name, x = "Date", y = "Value")
+   
+   print(line_plot)
+   }
   
   # Fitting
   
@@ -840,9 +834,13 @@ current_price <- price_data %>%
 
 if(forecast_prediction > current_price){
   recommendation <- "long"
+  inverse <- "short"
 } else {
   recommendation <- "short"
+  inverse <- "long"
 }
+
+
 
 if(forecast_prediction > current_price){
   recommendation2 <- "bullish"
@@ -856,31 +854,19 @@ upside_pot <- abs(current_price - forecast_prediction)
 ## Recommendation
 
 ```{r, echo = F}
-# Preferred viewing format is as an HTML web page.
-
-# Option to disable key charts within the written contents of the report. Helpful for tidy 2 page printing.
-show_rc <- !printer_ready
-
-# Alternatively, in print settings choose 80%-85% zoom to fit up to 2 visuals per page.
-
-# Written contents are 2 pages
+# Show graphics in main body?
+show_rc <- TRUE
 ```
 
 The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the most recently observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
 
 ## Trading Strategy
 
-A long position in the crack spread can be entered in one of two ways: 
-
-1. Enter using a long crack spread futures contract. By locking in the price of the crack spread today, we will profit if the crack spread increases.
-
-2. Enter long into 2 gasoline and 1 heating oil futures contract, and then enter short into 3 crude oil contracts. Note that crude oil contract volumes are 1000 barrels on the CME and RBOB and Heating Oil volumes are 42,000 gallons (1000 Barrels).
-
-Note: In the event market conditions change, and a short position is recommended, enter the opposite of the above position.
+Enter `r recommendation` into 2 gasoline and 1 heating oil futures contract, and then enter `r inverse` into 3 crude oil contracts. Note that crude oil contract volumes are 1000 barrels on the CME and RBOB and Heating Oil volumes are 42,000 gallons (1000 Barrels). Alternatively, enter `r recommendation` into a 3-2-1 Crack Spread Future.
 
 ## Rationale
 
-```{r, echo = FALSE}
+```{r, echo = FALSE, fig.width=8, fig.height=2}
 if(show_rc){
   final_reg_graph
 }
@@ -888,34 +874,38 @@ if(show_rc){
 
 The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway Administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. We choose which position to enter based on whether our prediction is higher or lower than the current price, assuming that our indicator and the market will at some point converge.
 
-Because our data is lagging (not live), forecasting models are developed for each market driver. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamental levels based on previous seasonality and trend. A prediction using the last observable data points is also provided, as a reference to measure the influence of time series forecasting on the decision.
+Because our data is lagging (not live), forecasting models are developed for each market driver. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamental levels using previous levels, seasonality and trend. We also predict price using the last observable data points, as a way of measuring the influence of our forecasts on the decision.
 
 ## Fundamental Market Drivers
 
-Data was selected by a combination of higher correlations with the crack spread prices as well as higher data frequency supporting more timely decision making. See "How does each driver factor into forecasted price?" in the appendix for a more detailed breakdown.
+Data was selected by correlation with the crack spread prices and by data frequency/quality:
 
-**Demand Side (Bullish) Factors:** 
+::: {.columns}
+:::: {.column width="50%" style="padding: 0; margin: 0;"}
+<span style="font-weight: bold; font-size: 90%;">Demand Side (Bullish Influence) Factors:</span>
+<ul style="margin: 0; padding-left: 1.2em; font-size: 90%;">
+  <li>Truck Tonnage</li>
+  <li>Billion Miles Driven</li>
+</ul>
+::::
 
-* Truck Tonnage 
-* Billion Miles Driven
-* US Crude Net Imports
-
-**Supply Side (Bearish) Factors:**
-
-* US Crude Inventory 
-* US Crude Production 
-* US Gasoline Production
-* US Crude Net Imports
-* Percent Operable Utilization (Refineries) 
-* Gasoline Stocks, Conventional
+:::: {.column width="50%" style="padding: 0; margin: 0;"}
+<span style="font-weight: bold; font-size: 90%;">Supply Side (Bearish Influence) Factors:</span>
+<ul style="margin: 0; padding-left: 1.2em; font-size: 90%;">
+<li>US Crude Inventory</li>
+<li>US Crude Production</li>
+<li>US Gasoline Production</li>
+<li>US Crude Net Imports</li>
+<li>Gasoline Stocks, Conventional</li>
+</ul>
+::::
+:::
 
 ## Risk/Reward
 
-Model Risk:
+Model risk arises from structural changes to fundamental-price equilibrium. When this arises, it can be solved by aging out part of the training data for the regression model.
 
-Historic data may have different equilibriums for the same fundamentals' levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than in price.
-
-With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r upside_pot` per barrel.**
+Sometimes our market drivers will instead respond to the current crack spread. This results in our prediction moving instead of the market price. Assuming no reversals in dependency, our model forecasts an **upside potential of `r upside_pot` per barrel**, however this is likely overstated as our spread price and prediction may converge.
 
 ```{r, echo = FALSE, warning = F}
 # VAR Metrics
@@ -929,7 +919,8 @@ var_monthly_hist <- var_monthly %>%
   dplyr::filter(abs(monthly_cret) < 2) %>% 
   ggplot() +
   geom_histogram(aes(x = monthly_cret, y = ..count../sum(..count..)), bins = 100) +
-  labs(title = "Distribution of Monthly Returns, Crack Spread",
+  labs(title = "Fig 1: Monthly Returns Crack Spread",
+       subtitle = "Sliding Window",
        x = "Monthly Return",
        y = "Density")
 
@@ -951,19 +942,9 @@ if(recommendation == "long"){
 }
 ```
 
-We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. From this we can estimate that our best outcome in the worst 5% of cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions, supported by the data. A more detailed view of the monthly return distribution is displayed below and in the appendix:
+We use Value at Risk because it gives us a less biased risk estimate independent from our model. The **5% Value at Risk on 1 month positions in the crack spread is `r VAR`**. Our best outcome in the worst 5% of past cases is `r VAR` on a 1 month position. Tail risk is more extreme for short positions than long positions (Fig 1). Liquidity risk (the risk of closing out early) can be better assessed using rolling volatilities (Fig 2). Note that rolling 20 and 50 day volatilities are currently low, however note the tendency for 20 day volatilities to spike above average on occasion:
 
-```{r, echo = FALSE, warning = F}
-# Display
-
-if(show_rc){
-  var_monthly_hist
-}
-```
-
-To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods. See the rolling volatility graphic.
-
-```{r, echo = FALSE, warning = F}
+```{r, echo = FALSE, warning = F, fig.width=8, fig.height=4}
 # Rolling Volatility Crack Spread
 rolling_vol <- price_data %>% 
   dplyr::filter(series == "Crack_Spread") %>% 
@@ -975,22 +956,18 @@ rolling_vol <- price_data %>%
   dplyr::ungroup() %>% 
   dplyr::select(date, sd20, sd50, sd200, static_sd) %>% 
   pivot_longer(cols = c("sd20", "sd50", "sd200", "static_sd")) %>% 
-  ggplot(aes(color = name)) +
+  dplyr::rename(Legend = name) %>% 
+  ggplot(aes(color = Legend)) +
   geom_line(aes(x = date, y = value)) +
   labs(y = "Volatility of Returns",
        x = "Date",
-       title = "Rolling Volatilities of Crack Spread",
+       title = "Fig 2: Rolling Volatilities of Crack Spread",
        subtitle = "20 day, 50 Day, 200 Day and Average")
 
 if(show_rc){
-  rolling_vol
+  var_monthly_hist / rolling_vol
 }
 ```
-
-
-
-
-
 
 ## Appendix
 
@@ -1008,7 +985,12 @@ final_reg_p %>% dplyr::select(R_Squared = r.squared,
 final_reg_c %>% 
   dplyr::select(Market_Driver = term, Coefficient = estimate, Standard_Error = std.error, P_Val = p.value) %>% 
   kable()
+```
 
+
+### Additional Model Assessment
+
+```{r, echo = F}
 final_reg_qq
 final_reg_vif %>% kable()
 ```
@@ -1031,17 +1013,16 @@ df3 %>% summarise(Estimate = sum(Value)) %>% kable()
 
 ### Risk Assessment Visuals
 
-```{r, echo = F, warning = F, message = F}
+```{r, echo = F, warning = F, message = F, fig.width=8, fig.height=5}
 vol_comparison_1 + labs(subtitle = "Crack Spread is more Volatile than RBOB")
-var_monthly_hist
-rolling_vol
+var_monthly_hist / rolling_vol
 ```
 
-### Sample ARIMA and STL Models
+### Samples of ARIMA and STL Models
 
-*Charts for STL and ARMA models exceed 45.* For brevity, only sample visualizations and stats used to assess model fit are included below. It outlines the diagnostic tools for each model. For a more detailed view of each model, go to the *Forecasting* code block and set show_all_charts <- True. Note that these charts will appear at the front of the report when rendered, since they are earlier in the workflow.
+*Charts counts for STL and ARMA models exceed 45.* For brevity, only sample visualizations and stats used to assess model fit are included below. These examples showcase the diagnostic tools used to fit each model. For a more detailed view of each model, go to the *Forecasting* code block and set show_all_charts <- True. Note that these charts will appear at the front of the report when rendered, since they are earlier in the workflow.
 
-#### Sample ARIMA, Random Walk
+#### Sample ARIMA Model
 
 The charts below show the model fitting workflow in order:
 
@@ -1051,20 +1032,26 @@ The charts below show the model fitting workflow in order:
 * The model order to assess structure type.
 * The Q-Stat, to assess whether final error resembles white noise.
 
+##### ARIMA Model on US Crude Inventories | Random Walk
 
-```{r, echo = F}
-crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, T)
+```{r, echo = F, fig.width=8, fig.height=4}
+crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, F)
 
+fundamentals_data %>% s_graph("US_Crude_Inventory") + labs(title = "US Crude Inventory", y = "Thousand Barrels", x = "Date")
+crude_inv_model$data_acf %>% autoplot() + labs(title = "ACF | US Crude Inventory | Raw Data")
+crude_inv_model$data_pacf %>% autoplot() + labs(title = "PACF | US Crude Inventory | Raw Data")
+crude_inv_model$res_acf %>% autoplot() + labs(title = "ACF | US Crude Inventory | Residuals")
+crude_inv_model$res_pacf %>% autoplot() + labs(title = "PACF | US Crude Inventory | Residuals")
 q_stat1 <- crude_inv_model$q_stat
 order1 <- crude_inv_model$order
 ```
 The **model order (p,d,q) is `r order1`** and the **q-stat p-value is `r q_stat1`.** Larger p-values are better in this case. The null represents white noise and low likelihood of further model improvement through structural capture.
 
-#### Sample STL
+#### Sample STL Model | Billions of Miles Driven
 
 Below is an example of using STL to capture seasonal and trend components in more regular data. The function developed also returns an ARIMA ready data set of residuals, to generate further analysis as shown previously.
 
-```{r, echo = F}
+```{r, echo = F, fig.width=8, fig.height=4}
 miles_stl <- FHWA_Data %>% 
   dplyr::filter(series == "B_Miles_Driven") %>% 
   dplyr::mutate(series = "Billions of Miles Driven, US") %>% 
@@ -1073,8 +1060,21 @@ miles_stl <- FHWA_Data %>%
 
 ### Additional Resources
 
-```{r, echo = FALSE}
-
+```{r, echo = FALSE, fig.width=10, fig.height=10}
+# Credit to ChatGPT for the corrplot formatting
+data_vif_adj %>% 
+dplyr::select(-prediction) %>% 
+cor() %>% 
+corrplot( 
+         method = "color",
+         col = colorRampPalette(c("blue", "white", "red"))(200),
+         type = "upper",
+         order = "hclust",
+         addCoef.col = "black",
+         tl.col = "black",
+         tl.srt = 45,
+         diag = FALSE
+)
 ```
 
 ```{r, Developer Notes, echo = FALSE}
