@@ -844,6 +844,12 @@ if(forecast_prediction > current_price){
 
 ## Recommendation
 
+```{r, echo = F}
+# Option to display key charts within the written contents of the report.
+# Written contents are 2 pages
+show_rc <- TRUE
+```
+
 The 3-2-1 crack spread looks **`r recommendation2`** based on market fundamentals. Our model predicts a crack spread of **`r forecast_prediction` using forecasted** values and **`r prediction_last_observed` using the last observable** data points. Based on the most recent 3-2-1 crack spread **price of `r current_price`**, a **`r recommendation` position** in the crack spread is recommended.
 
 ## Trading Strategy
@@ -859,10 +865,12 @@ Note: In the event market conditions change, and a short position is recommended
 ## Rationale
 
 ```{r, echo = FALSE}
-# final_reg_graph
+if(show_rc){
+  final_reg_graph
+}
 ```
 
-The prediction is driven by a regression model (shown above) consisting of **9 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
+The prediction is driven by a regression model (shown above) consisting of **7 market drivers**, with sources from the Energy Information Administration, Federal Reserve Economic Data, Yahoo Finance, and Federal Highway administration. Since the **regression model** makes use of aligned monthly data points, without interpolation, it's better used when entering longer time frame positions with a clear stop loss and exit strategy. This model attempts to predict current prices using current fundamental market levels. The key idea is that when prices and our predictions are out of sync, the price will normalize to our current model prediction in the future. This lets us choose which position to enter based on whether our prediction is higher or lower than the current price.
 
 Because our predictors are updated at different frequencies and different time lags, forecasting models are developed for each indicator. **STL decomposition** is used to capture larger structural patterns such as seasonality and trend, and **ARIMA models** are then used to capture remaining dependency in the residuals. This allows us to predict today's fundamentals levels based on previous seasonality and trend. Because time series forecasting expands in uncertainty the further forward in time you forecast, a prediction using the last observable data points is also provided. This lets us compare how much the time series forecast is influencing the recommended decision relative to the last observable data.
 
@@ -889,7 +897,7 @@ Data was selected by a combination of higher correlations with the crack spread 
 
 Model Risk:
 
-Different time periods may have different equilibriums, even if all market drivers are at the same level. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. It is important to consult the team to determine what a competitive time frame entails. If the time frame in fact needs to be shortened, longer time frames can be used for the market drivers to capture long term seasonal effects, and shorter time frames can be used to train the underlying regression model. Additionally, sometimes crack spread can in fact be the market driver. When crack spreads are high, we can expect crude net imports to increase, for example. This is undesirable, since it means our prediction will shift in the direction of the current price, rather than the other way around.
+Historic data may have different equilibriums for the same fundamentals' levels. For example, technology can make production and refinement cheaper, which in turn means refineries are willing to produce more under less profitable conditions, which would drive the spread closer together. If necessary, shorter time frames can be used to train the regression model, while maintaining longer time frames for forecasting market driver. Another risk is that a market driver will respond to the high crack spread. This would result in a change in our prediction rather than a change in price.
 
 With the previous factors in mind, assuming no reversals between dependent and independent variables, our model forecasts an **upside potential of `r abs(current_price - forecast_prediction)` per barrel.**
 
@@ -931,9 +939,12 @@ We use Value at Risk because it gives us a less biased risk estimate independent
 
 ```{r, echo = FALSE, warning = F}
 # Display
-# var_monthly_hist
+
+if(show_rc){
+  var_monthly_hist
+}
 ```
-To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over, but also the tendency for volatility to spike for short periods:
+To assess liquidity risk, the risk of getting closed out of a position due to higher daily volatility, see the rolling standard deviation chart below. It demonstrates both decreasing volatility over time, that volatility is currently lower than average, but also the tendency for volatility to spike for short periods:
 
 ```{r, echo = FALSE}
 # Rolling Volatility Crack Spread
@@ -954,10 +965,10 @@ rolling_vol <- price_data %>%
        title = "Rolling Volatilities of Crack Spread",
        subtitle = "20 day, 50 Day, 200 Day and Average")
 
-# rolling_vol
+if(show_rc){
+  rolling_vol
+}
 ```
-
-From this we can conclude that our best outcome in the worst 5% of cases is `r VAR` and that our daily volatility is much lower at this point of time, meaning less margin is required to sustain a 1 month position to close. If volatility increases long term, a model which focuses on a narrower time frame would likely be more suitable.
 
 ## Appendix
 
@@ -1002,6 +1013,39 @@ df3 %>% summarise(Estimate = sum(Value)) %>% kable()
 vol_comparison_1 + labs(subtitle = "Crack Spread is more Volatile than RBOB")
 var_monthly_hist
 rolling_vol
+```
+
+### Sample ARIMA and STL Models
+
+*Charts for STL and ARMA models exceed 45.* For brevity, only sample visualizations and stats used to assess model fit are included below. It outlines the diagnostic tools for each model. For a more detailed view of each model, go to the *Forecasting* code block and set show_all_charts <- True. Note that these charts will appear at the front of the report when rendered, since they are earlier in the workflow.
+
+#### Sample ARIMA, Random Walk
+
+The charts below show the model fitting workflow in order:
+
+* The Raw Data Graphed, to visually assess for structure.
+* The ACF and PACF of the raw data.
+* The ACF and PACF of Residuals
+* The model order to assess structure type.
+* The Q-Stat, to assess whether final error resembles white noise.
+
+
+```{r, echo = F}
+crude_inv_model <- auto_forecast(fundamentals_data, "US_Crude_Inventory", 7, T)
+
+q_stat1 <- crude_inv_model$q_stat
+order1 <- crude_inv_model$order
+```
+The **model order (p,d,q) is `r order1`** and the **q-stat p-value is `r q_stat1`.** Larger p-values are better in this case. The null represents white noise and low likelihood of further model improvement through structural capture.
+
+#### Sample STL
+
+Below is an example of using STL to capture seasonal and trend components in more regular data. The function developed also returns an ARIMA ready data set of residuals, to generate further analysis as shown previously.
+
+**Below: Billion Miles Driven in the US**
+
+```{r}
+miles_stl <- FHWA_Data %>% autoSTL(series_name = "B_Miles_Driven", 365/12, 12, 13, T)
 ```
 
 ```{r, Developer Notes, echo = FALSE}
